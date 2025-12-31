@@ -1,4 +1,4 @@
-import { db } from "./db";
+import type { Db } from "./db";
 
 type RouteRequest = Request & { params?: Record<string, string> };
 type HeaderValues = Record<string, string>;
@@ -6,7 +6,7 @@ type HeaderValues = Record<string, string>;
 export type RequestContext<TUser = unknown> = {
 	req: RouteRequest;
 	params: Record<string, string>;
-	db: typeof db;
+	db: Db;
 	user: TUser | null;
 };
 
@@ -22,10 +22,11 @@ export type JsonHandler<TInput, TOutput, TUser = unknown> = (
 ) => Promise<TOutput | JsonEnvelope<TOutput>> | TOutput | JsonEnvelope<TOutput>;
 
 export type WrapOptions<TUser = unknown> = {
+	db: Db;
 	requireAuth?: boolean;
 	defaultStatus?: number;
 	parseBody?: boolean;
-	getUser?: (req: RouteRequest) => TUser | null;
+	getUser?: (req: RouteRequest, db: Db) => TUser | null;
 };
 
 export function jsonResponse<T>(
@@ -37,7 +38,7 @@ export function jsonResponse<T>(
 
 export function wrap<TInput, TOutput, TUser = unknown>(
 	handler: JsonHandler<TInput, TOutput, TUser>,
-	options: WrapOptions<TUser> = {},
+	options: WrapOptions<TUser>,
 ) {
 	return async (req: RouteRequest): Promise<Response> => {
 		let input: TInput = undefined as TInput;
@@ -53,7 +54,7 @@ export function wrap<TInput, TOutput, TUser = unknown>(
 			}
 		}
 
-		const user = options.getUser ? options.getUser(req) : null;
+		const user = options.getUser ? options.getUser(req, options.db) : null;
 		if (options.requireAuth && !user) {
 			return Response.json({ error: "Unauthorized" }, { status: 401 });
 		}
@@ -61,7 +62,7 @@ export function wrap<TInput, TOutput, TUser = unknown>(
 		const ctx: RequestContext<TUser> = {
 			req,
 			params: req.params ?? {},
-			db,
+			db: options.db,
 			user,
 		};
 

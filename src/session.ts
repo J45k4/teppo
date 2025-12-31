@@ -1,5 +1,5 @@
-import { db } from "./db";
 import { jsonResponse, type RequestContext } from "./wrap";
+import type { Db } from "./db";
 
 export type AuthPayload = {
 	email: string;
@@ -56,7 +56,7 @@ function isSessionExpired(expiresAt: string): boolean {
 	return Date.parse(expiresAt) <= Date.now();
 }
 
-export function getSessionUser(req: Request): SessionUser | null {
+export function getSessionUser(req: Request, db: Db): SessionUser | null {
 	const token = getCookieValue(req.headers.get("cookie"), SESSION_COOKIE);
 	if (!token) return null;
 	const session = db.getSessionByToken(token);
@@ -84,7 +84,7 @@ export async function login(
 		return jsonResponse({ error: "Missing email" }, { status: 400 });
 	}
 
-	const user = db.getUserByEmail(email);
+	const user = ctx.db.getUserByEmail(email);
 	if (!user) {
 		return jsonResponse({ error: "Invalid credentials" }, { status: 401 });
 	}
@@ -108,7 +108,7 @@ export async function login(
 	const expiresAt = new Date(
 		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
 	).toISOString();
-	db.createSession(user.id, token, expiresAt);
+	ctx.db.createSession(user.id, token, expiresAt);
 
 	const secure = new URL(ctx.req.url).protocol === "https:";
 	return jsonResponse(
@@ -142,7 +142,7 @@ export async function signup(
 		);
 	}
 
-	const existing = db.getUserByEmail(email);
+	const existing = ctx.db.getUserByEmail(email);
 	if (existing) {
 		return jsonResponse(
 			{ error: "Email already registered" },
@@ -151,8 +151,8 @@ export async function signup(
 	}
 
 	const hash = await Bun.password.hash(payload.password);
-	const userId = db.createUser(email, hash);
-	const user = db.getUserById(userId);
+	const userId = ctx.db.createUser(email, hash);
+	const user = ctx.db.getUserById(userId);
 	if (!user) {
 		return jsonResponse({ error: "Signup failed" }, { status: 500 });
 	}
@@ -161,7 +161,7 @@ export async function signup(
 	const expiresAt = new Date(
 		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
 	).toISOString();
-	db.createSession(user.id, token, expiresAt);
+	ctx.db.createSession(user.id, token, expiresAt);
 
 	const secure = new URL(ctx.req.url).protocol === "https:";
 	return jsonResponse(
@@ -179,7 +179,7 @@ export function logout(
 	const secure = new URL(ctx.req.url).protocol === "https:";
 	const token = getCookieValue(ctx.req.headers.get("cookie"), SESSION_COOKIE);
 	if (token) {
-		db.deleteSessionByToken(token);
+		ctx.db.deleteSessionByToken(token);
 	}
 	return jsonResponse(
 		{ ok: true },
