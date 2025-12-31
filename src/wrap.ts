@@ -1,0 +1,84 @@
+import { db } from "./db";
+
+type RouteRequest = Request & { params?: Record<string, string> };
+type HeaderValues = Record<string, string>;
+
+export type RequestContext<TUser = unknown> = {
+	req: RouteRequest;
+	params: Record<string, string>;
+	db: typeof db;
+	user: TUser | null;
+};
+
+export type JsonEnvelope<T> = {
+	body: T;
+	status?: number;
+	headers?: HeaderValues;
+};
+
+export type JsonHandler<TInput, TOutput, TUser = unknown> = (
+	ctx: RequestContext<TUser>,
+	input: TInput,
+) => Promise<TOutput | JsonEnvelope<TOutput>> | TOutput | JsonEnvelope<TOutput>;
+
+export type WrapOptions<TUser = unknown> = {
+	requireAuth?: boolean;
+	defaultStatus?: number;
+	parseBody?: boolean;
+	getUser?: (req: RouteRequest) => TUser | null;
+};
+
+export function jsonResponse<T>(
+	body: T,
+	init?: { status?: number; headers?: HeaderValues },
+): JsonEnvelope<T> {
+	return { body, status: init?.status, headers: init?.headers };
+}
+
+export function wrap<TInput, TOutput, TUser = unknown>(
+	handler: JsonHandler<TInput, TOutput, TUser>,
+	options: WrapOptions<TUser> = {},
+) {
+	return async (req: RouteRequest): Promise<Response> => {
+		let input: TInput = undefined as TInput;
+		const parseBody = options.parseBody ?? true;
+		if (parseBody && req.method !== "GET" && req.method !== "HEAD") {
+			try {
+				const text = await req.text();
+				if (text.trim().length > 0) {
+					input = JSON.parse(text) as TInput;
+				}
+			} catch {
+				return Response.json({ error: "Invalid JSON" }, { status: 400 });
+			}
+		}
+
+		const user = options.getUser ? options.getUser(req) : null;
+		if (options.requireAuth && !user) {
+			return Response.json({ error: "Unauthorized" }, { status: 401 });
+		}
+
+		const ctx: RequestContext<TUser> = {
+			req,
+			params: req.params ?? {},
+			db,
+			user,
+		};
+
+		try {
+			const result = await handler(ctx, input);
+			const envelope =
+				result && typeof result === "object" && "body" in result
+					? (result as JsonEnvelope<TOutput>)
+					: null;
+			const status = envelope?.status ?? options.defaultStatus ?? 200;
+			const headers = envelope?.headers;
+			const body = envelope ? envelope.body : (result as TOutput);
+			return Response.json(body, { status, headers });
+		} catch (error) {
+			const message =
+				error instanceof Error ? error.message : "Internal Server Error";
+			return Response.json({ error: message }, { status: 500 });
+		}
+	};
+}
