@@ -1,7 +1,7 @@
 import { db } from "./db";
-import { jsonResponse, wrap } from "./wrap";
+import { jsonResponse, type RequestContext } from "./wrap";
 
-type AuthPayload = {
+export type AuthPayload = {
 	email: string;
 	password: string;
 };
@@ -13,6 +13,8 @@ export type SessionUser = {
 	userId: number;
 	token: string;
 };
+
+export type AuthResponse = { id: number; email: string } | { error: string };
 
 function isAuthPayload(value: unknown): value is AuthPayload {
 	if (!value || typeof value !== "object") return false;
@@ -66,126 +68,121 @@ export function getSessionUser(req: Request): SessionUser | null {
 	return { userId: session.user_id, token };
 }
 
-export const handleLogin = wrap<
-	AuthPayload,
-	{ id: number; email: string } | { error: string }
->(
-	async (ctx, payload) => {
-		if (!payload || !isAuthPayload(payload)) {
-			return jsonResponse(
-				{ error: "Missing email or password" },
-				{ status: 400 },
-			);
-		}
-
-		const email = normalizeEmail(payload.email);
-		if (!email) {
-			return jsonResponse({ error: "Missing email" }, { status: 400 });
-		}
-
-		const user = db.getUserByEmail(email);
-		if (!user) {
-			return jsonResponse({ error: "Invalid credentials" }, { status: 401 });
-		}
-
-		if (!payload.password) {
-			return jsonResponse(
-				{ error: "Missing email or password" },
-				{ status: 400 },
-			);
-		}
-
-		const isMatch = await Bun.password.verify(
-			payload.password,
-			user.password_hash,
-		);
-		if (!isMatch) {
-			return jsonResponse({ error: "Invalid credentials" }, { status: 401 });
-		}
-
-		const token = crypto.randomUUID();
-		const expiresAt = new Date(
-			Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
-		).toISOString();
-		db.createSession(user.id, token, expiresAt);
-
-		const secure = new URL(ctx.req.url).protocol === "https:";
+export async function login(
+	ctx: RequestContext,
+	payload: AuthPayload | undefined,
+): Promise<ReturnType<typeof jsonResponse<AuthResponse>>> {
+	if (!payload || !isAuthPayload(payload)) {
 		return jsonResponse(
-			{ id: user.id, email: user.email },
-			{
-				headers: { "Set-Cookie": buildSessionCookie(token, secure) },
-			},
+			{ error: "Missing email or password" },
+			{ status: 400 },
 		);
-	},
-);
+	}
 
-export const handleSignup = wrap<
-	AuthPayload,
-	{ id: number; email: string } | { error: string }
->(
-	async (ctx, payload) => {
-		if (!payload || !isAuthPayload(payload)) {
-			return jsonResponse(
-				{ error: "Missing email or password" },
-				{ status: 400 },
-			);
-		}
+	const email = normalizeEmail(payload.email);
+	if (!email) {
+		return jsonResponse({ error: "Missing email" }, { status: 400 });
+	}
 
-		const email = normalizeEmail(payload.email);
-		if (!email) {
-			return jsonResponse({ error: "Missing email" }, { status: 400 });
-		}
+	const user = db.getUserByEmail(email);
+	if (!user) {
+		return jsonResponse({ error: "Invalid credentials" }, { status: 401 });
+	}
 
-		if (!isPasswordValid(payload.password)) {
-			return jsonResponse(
-				{ error: "Password must be at least 8 characters" },
-				{ status: 400 },
-			);
-		}
-
-		const existing = db.getUserByEmail(email);
-		if (existing) {
-			return jsonResponse(
-				{ error: "Email already registered" },
-				{ status: 409 },
-			);
-		}
-
-		const hash = await Bun.password.hash(payload.password);
-		const userId = db.createUser(email, hash);
-		const user = db.getUserById(userId);
-		if (!user) {
-			return jsonResponse({ error: "Signup failed" }, { status: 500 });
-		}
-
-		const token = crypto.randomUUID();
-		const expiresAt = new Date(
-			Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
-		).toISOString();
-		db.createSession(user.id, token, expiresAt);
-
-		const secure = new URL(ctx.req.url).protocol === "https:";
+	if (!payload.password) {
 		return jsonResponse(
-			{ id: user.id, email: user.email },
-			{
-				status: 201,
-				headers: { "Set-Cookie": buildSessionCookie(token, secure) },
-			},
+			{ error: "Missing email or password" },
+			{ status: 400 },
 		);
-	},
-);
+	}
 
-export const handleLogout = wrap<undefined, { ok: true }>(
-	(ctx) => {
-		const secure = new URL(ctx.req.url).protocol === "https:";
-		const token = getCookieValue(ctx.req.headers.get("cookie"), SESSION_COOKIE);
-		if (token) {
-			db.deleteSessionByToken(token);
-		}
+	const isMatch = await Bun.password.verify(
+		payload.password,
+		user.password_hash,
+	);
+	if (!isMatch) {
+		return jsonResponse({ error: "Invalid credentials" }, { status: 401 });
+	}
+
+	const token = crypto.randomUUID();
+	const expiresAt = new Date(
+		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+	).toISOString();
+	db.createSession(user.id, token, expiresAt);
+
+	const secure = new URL(ctx.req.url).protocol === "https:";
+	return jsonResponse(
+		{ id: user.id, email: user.email },
+		{
+			headers: { "Set-Cookie": buildSessionCookie(token, secure) },
+		},
+	);
+}
+
+export async function signup(
+	ctx: RequestContext,
+	payload: AuthPayload | undefined,
+): Promise<ReturnType<typeof jsonResponse<AuthResponse>>> {
+	if (!payload || !isAuthPayload(payload)) {
 		return jsonResponse(
-			{ ok: true },
-			{ headers: { "Set-Cookie": buildClearSessionCookie(secure) } },
+			{ error: "Missing email or password" },
+			{ status: 400 },
 		);
-	},
-	{ parseBody: false },
-);
+	}
+
+	const email = normalizeEmail(payload.email);
+	if (!email) {
+		return jsonResponse({ error: "Missing email" }, { status: 400 });
+	}
+
+	if (!isPasswordValid(payload.password)) {
+		return jsonResponse(
+			{ error: "Password must be at least 8 characters" },
+			{ status: 400 },
+		);
+	}
+
+	const existing = db.getUserByEmail(email);
+	if (existing) {
+		return jsonResponse(
+			{ error: "Email already registered" },
+			{ status: 409 },
+		);
+	}
+
+	const hash = await Bun.password.hash(payload.password);
+	const userId = db.createUser(email, hash);
+	const user = db.getUserById(userId);
+	if (!user) {
+		return jsonResponse({ error: "Signup failed" }, { status: 500 });
+	}
+
+	const token = crypto.randomUUID();
+	const expiresAt = new Date(
+		Date.now() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+	).toISOString();
+	db.createSession(user.id, token, expiresAt);
+
+	const secure = new URL(ctx.req.url).protocol === "https:";
+	return jsonResponse(
+		{ id: user.id, email: user.email },
+		{
+			status: 201,
+			headers: { "Set-Cookie": buildSessionCookie(token, secure) },
+		},
+	);
+}
+
+export function logout(
+	ctx: RequestContext,
+): ReturnType<typeof jsonResponse<{ ok: true }>> {
+	const secure = new URL(ctx.req.url).protocol === "https:";
+	const token = getCookieValue(ctx.req.headers.get("cookie"), SESSION_COOKIE);
+	if (token) {
+		db.deleteSessionByToken(token);
+	}
+	return jsonResponse(
+		{ ok: true },
+		{ headers: { "Set-Cookie": buildClearSessionCookie(secure) } },
+	);
+}
