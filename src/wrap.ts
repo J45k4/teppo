@@ -29,6 +29,39 @@ export type WrapOptions<TUser = unknown> = {
 	getUser?: (req: RouteRequest, db: Db) => TUser | null;
 };
 
+export class HttpError extends Error {
+	status: number;
+
+	constructor(status: number, message: string) {
+		super(message);
+		this.status = status;
+	}
+}
+
+export class BadRequestError extends HttpError {
+	constructor(message = "Bad Request") {
+		super(400, message);
+	}
+}
+
+export class UnauthorizedError extends HttpError {
+	constructor(message = "Unauthorized") {
+		super(401, message);
+	}
+}
+
+export class ForbiddenError extends HttpError {
+	constructor(message = "Forbidden") {
+		super(403, message);
+	}
+}
+
+export class NotFoundError extends HttpError {
+	constructor(message = "Not Found") {
+		super(404, message);
+	}
+}
+
 export function jsonResponse<T>(
 	body: T,
 	init?: { status?: number; headers?: HeaderValues },
@@ -77,6 +110,9 @@ export function wrap<TInput, TOutput, TUser = unknown>(
 			const body = envelope ? envelope.body : (result as TOutput);
 			return Response.json(body, { status, headers });
 		} catch (error) {
+			if (error instanceof HttpError) {
+				return Response.json({ error: error.message }, { status: error.status });
+			}
 			const message =
 				error instanceof Error ? error.message : "Internal Server Error";
 			return Response.json({ error: message }, { status: 500 });

@@ -1,6 +1,14 @@
 import type { SessionUser } from "./session";
 import type { TodoRow } from "./db";
-import { jsonResponse, type JsonEnvelope, type RequestContext } from "./wrap";
+import {
+	BadRequestError,
+	ForbiddenError,
+	NotFoundError,
+	UnauthorizedError,
+	jsonResponse,
+	type JsonEnvelope,
+	type RequestContext,
+} from "./wrap";
 
 export type TodoCreatePayload = {
 	name: string;
@@ -27,21 +35,21 @@ export function getTodo(
 ): TodoRow | JsonEnvelope<{ error: string }> {
 	const userId = ctx.user?.userId;
 	if (!userId) {
-		return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+		throw new UnauthorizedError();
 	}
 
 	const todoId = parseTodoId(ctx.params.id);
 	if (!todoId) {
-		return jsonResponse({ error: "Invalid todo id" }, { status: 400 });
+		throw new BadRequestError("Invalid todo id");
 	}
 
 	const todo = ctx.db.getTodoById(todoId);
 	if (!todo) {
-		return jsonResponse({ error: "Todo not found" }, { status: 404 });
+		throw new NotFoundError("Todo not found");
 	}
 
 	if (todo.user_id !== userId) {
-		return jsonResponse({ error: "Forbidden" }, { status: 403 });
+		throw new ForbiddenError();
 	}
 
 	return todo;
