@@ -11,21 +11,23 @@ import {
 } from "./wrap";
 
 export type TimeEntryCreatePayload = {
-	projectId: number;
-	startTime: string;
-	endTime: string;
-};
+	projectId: number
+	startTime: string
+	endTime: string
+	description?: string
+}
 
 export type TimeEntryUpdatePayload = {
-	projectId?: number;
-	startTime?: string;
-	endTime?: string;
-};
+	projectId?: number
+	startTime?: string
+	endTime?: string
+	description?: string
+}
 
 function parseTimeEntryId(idParam: string | undefined): number | null {
-	if (!idParam) return null;
-	const parsed = Number(idParam);
-	return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+	if (!idParam) return null
+	const parsed = Number(idParam)
+	return Number.isInteger(parsed) && parsed > 0 ? parsed : null
 }
 
 function isTimeEntryCreatePayload(
@@ -112,7 +114,8 @@ export function createTimeEntry(
 		userId,
 		payload.startTime,
 		payload.endTime,
-	);
+		payload.description,
+	)
 	return jsonResponse({ id }, { status: 201 });
 }
 
@@ -158,8 +161,10 @@ export function updateTimeEntry(
 			: entry.start_time;
 	const nextEnd =
 		typeof payload.endTime === "string" ? payload.endTime : entry.end_time;
+	const nextDescription =
+		typeof payload.description === "string" ? payload.description : entry.description;
 
-	ctx.db.updateTimeEntry(entryId, nextProjectId, nextStart, nextEnd);
+	ctx.db.updateTimeEntry(entryId, nextProjectId, nextStart, nextEnd, nextDescription);
 	return ctx.db.getTimeEntryById(entryId) ?? entry;
 }
 

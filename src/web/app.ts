@@ -1,0 +1,103 @@
+import { markSessionStatus, navigate, routes } from "./router"
+import { renderTimeTrackingPage } from "./time-page"
+
+const serverAddr = window.location.origin
+
+window.onload = () => {
+	routes({
+		"/login": () => renderLogin(),
+		"/time": () => renderTimeTrackingPage(),
+		"/*": () => renderHome(),
+	})
+
+	console.info("Using server address:", serverAddr)
+}
+
+function getBody(): HTMLBodyElement {
+	const body = document.querySelector("body")
+	if (!body) {
+		throw new Error("No body element found")
+	}
+	return body
+}
+
+function renderHome() {
+	const body = getBody()
+	body.innerHTML = `
+		<main class="app-shell">
+			<h1>Teppo</h1>
+			<p>Welcome back. Your workspace is ready.</p>
+			<div class="app-actions">
+				<button id="goto-time" type="button">Open time tracking</button>
+				<button id="logout" type="button">Log out</button>
+			</div>
+		</main>
+	`
+
+	const timeButton = document.querySelector<HTMLButtonElement>("#goto-time")
+	if (timeButton) {
+		timeButton.addEventListener("click", () => navigate("/time"))
+	}
+
+	const logout = document.querySelector<HTMLButtonElement>("#logout")
+	if (logout) {
+		logout.addEventListener("click", async () => {
+			await fetch("/logout", { method: "POST", credentials: "include" })
+			markSessionStatus(false)
+			navigate("/login")
+		})
+	}
+}
+
+function renderLogin() {
+	const body = getBody()
+	body.innerHTML = `
+		<main class="app-shell">
+			<h1>Sign in</h1>
+			<form id="login-form">
+				<label>
+					<span>Email</span>
+					<input name="email" type="email" required />
+				</label>
+				<label>
+					<span>Password</span>
+					<input name="password" type="password" required />
+				</label>
+				<button type="submit">Log in</button>
+			</form>
+			<p id="login-error" aria-live="polite"></p>
+		</main>
+	`
+
+	const form = document.querySelector<HTMLFormElement>("#login-form")
+	const error = document.querySelector<HTMLParagraphElement>("#login-error")
+	if (!form || !error) return
+
+	form.addEventListener("submit", async (event) => {
+		event.preventDefault()
+		error.textContent = ""
+		const formData = new FormData(form)
+		const email = String(formData.get("email") ?? "")
+		const password = String(formData.get("password") ?? "")
+
+		try {
+			const response = await fetch("/login", {
+				method: "POST",
+				credentials: "include",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email, password }),
+			})
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as
+					| { error?: string }
+					| null
+				error.textContent = payload?.error ?? "Login failed"
+				return
+			}
+			markSessionStatus(true)
+			navigate("/")
+		} catch (err) {
+			error.textContent = "Login failed"
+		}
+	})
+}

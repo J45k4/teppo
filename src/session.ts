@@ -1,4 +1,4 @@
-import { jsonResponse, type RequestContext } from "./wrap";
+import { UnauthorizedError, jsonResponse, type RequestContext } from "./wrap";
 import type { Db } from "./db";
 
 export type AuthPayload = {
@@ -15,6 +15,7 @@ export type SessionUser = {
 };
 
 export type AuthResponse = { id: number; email: string } | { error: string };
+export type MeResponse = { id: number; email: string };
 
 function isAuthPayload(value: unknown): value is AuthPayload {
 	if (!value || typeof value !== "object") return false;
@@ -185,4 +186,18 @@ export function logout(
 		{ ok: true },
 		{ headers: { "Set-Cookie": buildClearSessionCookie(secure) } },
 	);
+}
+
+export function me(ctx: RequestContext<SessionUser>): MeResponse {
+	const userId = ctx.user?.userId;
+	if (!userId) {
+		throw new UnauthorizedError();
+	}
+
+	const user = ctx.db.getUserById(userId);
+	if (!user) {
+		throw new UnauthorizedError();
+	}
+
+	return { id: user.id, email: user.email };
 }

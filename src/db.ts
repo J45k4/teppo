@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 
-export const DB_PATH = process.env.DB_PATH ?? "mydb.sqlite";
+export const DB_PATH = process.env.DB_PATH ?? "teppo.sqlite";
 
 export type UserRow = {
 	id: number;
@@ -30,6 +30,7 @@ export type TimeEntryRow = {
 	user_id: number;
 	start_time: string;
 	end_time: string;
+	description: string | null;
 };
 
 export type ContainerRow = {
@@ -218,7 +219,7 @@ export class Db {
 		);
 
 		this.insertTimeEntry = this.sqlite.query(
-			"INSERT INTO time_entries (project_id, user_id, start_time, end_time) VALUES (?, ?, ?, ?)",
+			"INSERT INTO time_entries (project_id, user_id, start_time, end_time, description) VALUES (?, ?, ?, ?, ?)",
 		);
 		this.listTimeEntriesByUserQuery = this.sqlite.query<
 			TimeEntryRow,
@@ -240,7 +241,7 @@ export class Db {
 			"SELECT * FROM time_entries WHERE id = ?",
 		);
 		this.updateTimeEntryQuery = this.sqlite.query(
-			"UPDATE time_entries SET project_id = ?, start_time = ?, end_time = ? WHERE id = ?",
+			"UPDATE time_entries SET project_id = ?, start_time = ?, end_time = ?, description = ? WHERE id = ?",
 		);
 		this.deleteTimeEntryQuery = this.sqlite.query(
 			"DELETE FROM time_entries WHERE id = ?",
@@ -543,8 +544,9 @@ export class Db {
 		userId: number,
 		startTime: string,
 		endTime: string,
+		description?: string,
 	): number {
-		this.insertTimeEntry.run(projectId, userId, startTime, endTime);
+		this.insertTimeEntry.run(projectId, userId, startTime, endTime, description ?? null);
 		return this.getLastInsertId();
 	}
 
@@ -573,8 +575,9 @@ export class Db {
 		projectId: number,
 		startTime: string,
 		endTime: string,
+		description?: string | null,
 	): void {
-		this.updateTimeEntryQuery.run(projectId, startTime, endTime, id);
+		this.updateTimeEntryQuery.run(projectId, startTime, endTime, description ?? null, id);
 	}
 
 	deleteTimeEntry(id: number): void {

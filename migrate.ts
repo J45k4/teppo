@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const DB_PATH = process.env.DB_PATH ?? "mydb.sqlite";
+const DB_PATH = process.env.DB_PATH ?? "teppo.sqlite";
 const MIGRATIONS_DIR = "./migrations";
 
 type MigrationRow = {
