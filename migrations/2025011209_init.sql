@@ -63,6 +63,28 @@ CREATE TABLE items (
 CREATE INDEX idx_items_container_id ON items(container_id);
 CREATE INDEX idx_items_barcode ON items(barcode);
 
+CREATE TABLE user_containers (
+    user_id INTEGER NOT NULL,
+    container_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, container_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (container_id) REFERENCES containers(id)
+);
+
+CREATE INDEX idx_user_containers_user_id ON user_containers(user_id);
+CREATE INDEX idx_user_containers_container_id ON user_containers(container_id);
+
+CREATE TABLE user_items (
+    user_id INTEGER NOT NULL,
+    item_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, item_id),
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (item_id) REFERENCES items(id)
+);
+
+CREATE INDEX idx_user_items_user_id ON user_items(user_id);
+CREATE INDEX idx_user_items_item_id ON user_items(item_id);
+
 CREATE TABLE item_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     item_id INTEGER NOT NULL,
