@@ -1,5 +1,9 @@
 import { markSessionStatus, navigate, routes } from "./router"
+import { renderItemsPage } from "./items-page"
+import { renderReceiptDetailPage } from "./receipt-detail-page"
+import { renderReceiptsPage } from "./receipts-page"
 import { renderTimeTrackingPage } from "./time-page"
+import { bindNavbarHandlers, renderNavbar } from "./nav"
 
 const serverAddr = window.location.origin
 
@@ -7,6 +11,10 @@ window.onload = () => {
 	routes({
 		"/login": () => renderLogin(),
 		"/time": () => renderTimeTrackingPage(),
+		"/items": () => renderItemsPage(),
+		"/receipts": () => renderReceiptsPage(),
+		"/receipts/:id": (params: Record<string, string>) =>
+			renderReceiptDetailPage(params.id),
 		"/*": () => renderHome(),
 	})
 
@@ -24,28 +32,36 @@ function getBody(): HTMLBodyElement {
 function renderHome() {
 	const body = getBody()
 	body.innerHTML = `
-		<main class="app-shell">
-			<h1>Teppo</h1>
-			<p>Welcome back. Your workspace is ready.</p>
-			<div class="app-actions">
-				<button id="goto-time" type="button">Open time tracking</button>
-				<button id="logout" type="button">Log out</button>
-			</div>
-		</main>
+		<div class="app-frame">
+			${renderNavbar("home")}
+			<main class="app-shell">
+				<h1>Teppo</h1>
+				<p>Welcome back. Your workspace is ready.</p>
+				<div class="app-actions">
+					<button id="goto-time" type="button">Open time tracking</button>
+					<button id="goto-items" type="button">Manage items</button>
+					<button id="goto-receipts" type="button">View receipts</button>
+				</div>
+			</main>
+		</div>
 	`
+
+	bindNavbarHandlers(body)
 
 	const timeButton = document.querySelector<HTMLButtonElement>("#goto-time")
 	if (timeButton) {
 		timeButton.addEventListener("click", () => navigate("/time"))
 	}
 
-	const logout = document.querySelector<HTMLButtonElement>("#logout")
-	if (logout) {
-		logout.addEventListener("click", async () => {
-			await fetch("/logout", { method: "POST", credentials: "include" })
-			markSessionStatus(false)
-			navigate("/login")
-		})
+	const itemsButton = document.querySelector<HTMLButtonElement>("#goto-items")
+	if (itemsButton) {
+		itemsButton.addEventListener("click", () => navigate("/items"))
+	}
+
+	const receiptsButton =
+		document.querySelector<HTMLButtonElement>("#goto-receipts")
+	if (receiptsButton) {
+		receiptsButton.addEventListener("click", () => navigate("/receipts"))
 	}
 }
 
@@ -81,7 +97,7 @@ function renderLogin() {
 		const password = String(formData.get("password") ?? "")
 
 		try {
-			const response = await fetch("/login", {
+			const response = await fetch("/api/login", {
 				method: "POST",
 				credentials: "include",
 				headers: { "Content-Type": "application/json" },

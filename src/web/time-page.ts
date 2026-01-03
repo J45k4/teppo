@@ -1,4 +1,5 @@
 import { TimerManager } from "./TimerManager"
+import { bindNavbarHandlers, renderNavbar } from "./nav"
 
 type ProjectDTO = {
 	id: number
@@ -51,90 +52,93 @@ export async function renderTimeTrackingPage() {
 		.join("")
 
 	body.innerHTML = `
-		<main class="time-page">
-			<header class="time-header">
-				<div>
-					<p class="time-title">Time tracking</p>
-					<h1>This week in focus</h1>
-				</div>
-				<div class="time-week-total">
-					<span>Tracked</span>
-					<strong id="total-hours">0h</strong>
-					<span id="total-note">Last 7 days • All projects</span>
-				</div>
-			</header>
-			<section class="time-controls">
-				<div class="time-control-options">
-					<div class="project-picker" id="project-picker">
-						<button
-							id="project-picker-button"
-							type="button"
-							aria-haspopup="listbox"
-							aria-expanded="false"
-						>
-							<span class="project-picker-title">Project</span>
-							<strong id="project-picker-value">All projects</strong>
-							<span class="project-picker-chevron" aria-hidden="true">▾</span>
-						</button>
-						<div
-							class="project-picker-panel"
-							id="project-picker-panel"
-							aria-hidden="true"
-						>
-							<header class="project-picker-header">
-								<span>No client</span>
-								<span id="project-picker-count" class="project-picker-count">0 Projects</span>
-							</header>
-							<div class="project-picker-search">
-								<input
-									id="project-search"
-									type="search"
-									placeholder="Search project or client"
-								/>
-							</div>
-							<div class="project-picker-list" id="project-picker-list">
-								<p class="project-picker-empty">Loading projects…</p>
-							</div>
-							<button
-								type="button"
-								class="project-picker-create"
-								id="project-picker-create"
-							>
-								+ Create new project
-							</button>
-						</div>
+		<div class="app-frame">
+			${renderNavbar("time")}
+			<main class="time-page">
+				<header class="time-header">
+					<div>
+						<p class="time-title">Time tracking</p>
+						<h1>This week in focus</h1>
 					</div>
-					<label>
-						<span>Range</span>
-						<select id="range-select">
-							${rangeOptionsMarkup}
-						</select>
-					</label>
-					<label>
-						<span>Description</span>
-						<input
-							id="entry-description"
-							type="text"
-							placeholder="What are you working on?"
-						/>
-					</label>
-				</div>
-				<div class="time-control-actions">
-					<button id="start-timer" type="button">Start timer</button>
-					<button id="create-project" type="button">Create project</button>
-				</div>
-			</section>
-			<section class="time-list">
-				<div class="time-list-header">
-					<span>Project</span>
-					<span>Date</span>
-					<span>Duration</span>
-				</div>
-				<div class="time-rows" id="time-rows">
-					<p class="time-empty">Loading entries…</p>
-				</div>
-			</section>
-		</main>
+					<div class="time-week-total">
+						<span>Tracked</span>
+						<strong id="total-hours">0h</strong>
+						<span id="total-note">Last 7 days • All projects</span>
+					</div>
+				</header>
+				<section class="time-controls">
+					<div class="time-control-options">
+						<div class="project-picker" id="project-picker">
+							<button
+								id="project-picker-button"
+								type="button"
+								aria-haspopup="listbox"
+								aria-expanded="false"
+							>
+								<span class="project-picker-title">Project</span>
+								<strong id="project-picker-value">All projects</strong>
+								<span class="project-picker-chevron" aria-hidden="true">▾</span>
+							</button>
+							<div
+								class="project-picker-panel"
+								id="project-picker-panel"
+								aria-hidden="true"
+							>
+								<header class="project-picker-header">
+									<span>No client</span>
+									<span id="project-picker-count" class="project-picker-count">0 Projects</span>
+								</header>
+								<div class="project-picker-search">
+									<input
+										id="project-search"
+										type="search"
+										placeholder="Search project or client"
+									/>
+								</div>
+								<div class="project-picker-list" id="project-picker-list">
+									<p class="project-picker-empty">Loading projects…</p>
+								</div>
+								<button
+									type="button"
+									class="project-picker-create"
+									id="project-picker-create"
+								>
+									+ Create new project
+								</button>
+							</div>
+						</div>
+						<label>
+							<span>Range</span>
+							<select id="range-select">
+								${rangeOptionsMarkup}
+							</select>
+						</label>
+						<label>
+							<span>Description</span>
+							<input
+								id="entry-description"
+								type="text"
+								placeholder="What are you working on?"
+							/>
+						</label>
+					</div>
+					<div class="time-control-actions">
+						<button id="start-timer" type="button">Start timer</button>
+						<button id="create-project" type="button">Create project</button>
+					</div>
+				</section>
+				<section class="time-list">
+					<div class="time-list-header">
+						<span>Project</span>
+						<span>Date</span>
+						<span>Duration</span>
+					</div>
+					<div class="time-rows" id="time-rows">
+						<p class="time-empty">Loading entries…</p>
+					</div>
+				</section>
+			</main>
+		</div>
 		<div
 			class="modal-backdrop"
 			id="project-modal"
@@ -160,6 +164,8 @@ export async function renderTimeTrackingPage() {
 			</form>
 		</div>
 	`
+
+	bindNavbarHandlers(body)
 
 	const rangeSelect = body.querySelector<HTMLSelectElement>("#range-select")
 	const projectPicker = body.querySelector<HTMLDivElement>("#project-picker")
@@ -245,7 +251,7 @@ export async function renderTimeTrackingPage() {
 		)
 		updateView()
 		try {
-			const response = await fetch(`/time-entries/${entryId}`, {
+			const response = await fetch(`/api/time-entries/${entryId}`, {
 				method: "PATCH",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
@@ -456,7 +462,7 @@ export async function renderTimeTrackingPage() {
 			return
 		}
 		try {
-			const response = await fetch("/projects", {
+			const response = await fetch("/api/projects", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
@@ -514,7 +520,7 @@ export async function renderTimeTrackingPage() {
 		const description = entryDescriptionInput?.value.trim() ?? ""
 		try {
 			const now = new Date().toISOString()
-			const response = await fetch("/time-entries", {
+			const response = await fetch("/api/time-entries", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
@@ -754,7 +760,7 @@ function formatTimeRange(start: string, end: string, showSeconds = false) {
 }
 
 async function fetchTimeEntries() {
-	const response = await fetch("/time-entries", {
+	const response = await fetch("/api/time-entries", {
 		credentials: "include",
 	})
 	if (!response.ok) {
@@ -764,7 +770,7 @@ async function fetchTimeEntries() {
 }
 
 async function fetchProjects() {
-	const response = await fetch("/projects", {
+	const response = await fetch("/api/projects", {
 		credentials: "include",
 	})
 	if (!response.ok) {

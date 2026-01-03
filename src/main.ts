@@ -1,6 +1,6 @@
 import { Database } from "bun:sqlite";
 import { wrap } from "./wrap";
-import index from "./index.html";
+import index from "./web/index.html"
 import { Db, DB_PATH } from "./db";
 import { runMigrations } from "../migrate.ts";
 import {
@@ -110,22 +110,22 @@ const authOptions = { db, requireAuth: true, getUser: getSessionUser };
 
 const server = Bun.serve({
 	routes: {
-		"/signup": {
+		"/api/signup": {
 			POST: wrap<AuthPayload | undefined, AuthResponse>(signup, { db }),
 		},
-		"/login": {
+		"/api/login": {
 			POST: wrap<AuthPayload | undefined, AuthResponse>(login, { db }),
 		},
-		"/logout": {
+		"/api/logout": {
 			POST: wrap<undefined, { ok: true }>(logout, {
 				...authOptions,
 				parseBody: false,
 			}),
 		},
-		"/me": {
+		"/api/me": {
 			GET: wrap<undefined, MeResponse, SessionUser>(me, authOptions),
 		},
-		"/todo/:id": {
+		"/api/todo/:id": {
 			GET: wrap<undefined, TodoRow | { error: string }, SessionUser>(
 				getTodo,
 				authOptions,
@@ -139,17 +139,17 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/todo": {
+		"/api/todo": {
 			POST: wrap<
 				TodoCreatePayload | undefined,
 				{ id: number } | { error: string },
 				SessionUser
 			>(createTodo, authOptions),
 		},
-		"/todos": {
+		"/api/todos": {
 			GET: wrap<undefined, TodoRow[], SessionUser>(listTodos, authOptions),
 		},
-		"/projects": {
+		"/api/projects": {
 			GET: wrap<undefined, ReturnType<typeof listProjects>, SessionUser>(
 				listProjects,
 				authOptions,
@@ -159,7 +159,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/projects/:id": {
+		"/api/projects/:id": {
 			GET: wrap<undefined, ReturnType<typeof getProject>, SessionUser>(
 				getProject,
 				authOptions,
@@ -174,7 +174,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/time-entries": {
+		"/api/time-entries": {
 			GET: wrap<undefined, ReturnType<typeof listTimeEntries>, SessionUser>(
 				listTimeEntries,
 				authOptions,
@@ -185,7 +185,7 @@ const server = Bun.serve({
 				SessionUser
 			>(createTimeEntry, authOptions),
 		},
-		"/time-entries/:id": {
+		"/api/time-entries/:id": {
 			GET: wrap<undefined, ReturnType<typeof getTimeEntry>, SessionUser>(
 				getTimeEntry,
 				authOptions,
@@ -200,7 +200,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/containers": {
+		"/api/containers": {
 			GET: wrap<undefined, ReturnType<typeof listContainers>, SessionUser>(
 				listContainers,
 				authOptions,
@@ -211,7 +211,7 @@ const server = Bun.serve({
 				SessionUser
 			>(createContainer, authOptions),
 		},
-		"/containers/:id": {
+		"/api/containers/:id": {
 			GET: wrap<undefined, ReturnType<typeof getContainer>, SessionUser>(
 				getContainer,
 				authOptions,
@@ -226,7 +226,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/containers/:id/users": {
+		"/api/containers/:id/users": {
 			GET: wrap<undefined, ReturnType<typeof listContainerUsers>, SessionUser>(
 				listContainerUsers,
 				authOptions,
@@ -237,13 +237,13 @@ const server = Bun.serve({
 				SessionUser
 			>(addContainerUser, authOptions),
 		},
-		"/containers/:id/users/:userId": {
+		"/api/containers/:id/users/:userId": {
 			DELETE: wrap<undefined, { ok: true }, SessionUser>(
 				removeContainerUser,
 				authOptions,
 			),
 		},
-		"/items": {
+		"/api/items": {
 			GET: wrap<undefined, ReturnType<typeof listItems>, SessionUser>(
 				listItems,
 				authOptions,
@@ -253,7 +253,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/items/:id": {
+		"/api/items/:id": {
 			GET: wrap<undefined, ReturnType<typeof getItem>, SessionUser>(
 				getItem,
 				authOptions,
@@ -268,7 +268,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/items/:id/users": {
+		"/api/items/:id/users": {
 			GET: wrap<undefined, ReturnType<typeof listItemUsers>, SessionUser>(
 				listItemUsers,
 				authOptions,
@@ -278,13 +278,13 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/items/:id/users/:userId": {
+		"/api/items/:id/users/:userId": {
 			DELETE: wrap<undefined, { ok: true }, SessionUser>(
 				removeItemUser,
 				authOptions,
 			),
 		},
-		"/item-logs": {
+		"/api/item-logs": {
 			GET: wrap<undefined, ReturnType<typeof listItemLogs>, SessionUser>(
 				listItemLogs,
 				authOptions,
@@ -294,7 +294,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/item-logs/:id": {
+		"/api/item-logs/:id": {
 			GET: wrap<undefined, ReturnType<typeof getItemLog>, SessionUser>(
 				getItemLog,
 				authOptions,
@@ -309,7 +309,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/item-metadata": {
+		"/api/item-metadata": {
 			GET: wrap<undefined, ReturnType<typeof listItemMetadata>, SessionUser>(
 				listItemMetadata,
 				authOptions,
@@ -320,7 +320,7 @@ const server = Bun.serve({
 				SessionUser
 			>(createItemMetadata, authOptions),
 		},
-		"/item-metadata/:id": {
+		"/api/item-metadata/:id": {
 			GET: wrap<undefined, ReturnType<typeof getItemMetadata>, SessionUser>(
 				getItemMetadata,
 				authOptions,
@@ -335,7 +335,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/receipts": {
+		"/api/receipts": {
 			GET: wrap<undefined, ReturnType<typeof listReceipts>, SessionUser>(
 				listReceipts,
 				authOptions,
@@ -346,7 +346,7 @@ const server = Bun.serve({
 				SessionUser
 			>(createReceipt, authOptions),
 		},
-		"/receipts/:id": {
+		"/api/receipts/:id": {
 			GET: wrap<undefined, ReturnType<typeof getReceipt>, SessionUser>(
 				getReceipt,
 				authOptions,
@@ -361,7 +361,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
-		"/receipt-items": {
+		"/api/receipt-items": {
 			GET: wrap<undefined, ReturnType<typeof listReceiptItems>, SessionUser>(
 				listReceiptItems,
 				authOptions,
@@ -372,7 +372,7 @@ const server = Bun.serve({
 				SessionUser
 			>(createReceiptItem, authOptions),
 		},
-		"/receipt-items/:id": {
+		"/api/receipt-items/:id": {
 			GET: wrap<undefined, ReturnType<typeof getReceiptItem>, SessionUser>(
 				getReceiptItem,
 				authOptions,

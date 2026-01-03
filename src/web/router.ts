@@ -91,7 +91,7 @@ function hasSessionBeenChecked(): boolean {
 }
 
 async function fetchMe(): Promise<{ id: number; email: string } | null> {
-	const response = await fetch("/me", { credentials: "include" })
+	const response = await fetch("/api/me", { credentials: "include" })
 	if (response.status === 401) {
 		return null
 	}
