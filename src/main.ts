@@ -104,7 +104,7 @@ import {
 import type { TodoRow } from "./db";
 
 const sqlite = new Database(DB_PATH, { create: true });
-runMigrations(sqlite);
+await runMigrations(sqlite)
 const db = new Db({ db: sqlite });
 const authOptions = { db, requireAuth: true, getUser: getSessionUser };
 

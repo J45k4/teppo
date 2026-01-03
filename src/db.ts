@@ -25,13 +25,14 @@ export type ProjectRow = {
 };
 
 export type TimeEntryRow = {
-	id: number;
-	project_id: number;
-	user_id: number;
-	start_time: string;
-	end_time: string;
-	description: string | null;
-};
+	id: number
+	project_id: number
+	user_id: number
+	start_time: string
+	end_time: string
+	is_running: 0 | 1
+	description: string | null
+}
 
 export type ContainerRow = {
 	id: number;
@@ -219,7 +220,7 @@ export class Db {
 		);
 
 		this.insertTimeEntry = this.sqlite.query(
-			"INSERT INTO time_entries (project_id, user_id, start_time, end_time, description) VALUES (?, ?, ?, ?, ?)",
+			"INSERT INTO time_entries (project_id, user_id, start_time, end_time, is_running, description) VALUES (?, ?, ?, ?, ?, ?)",
 		);
 		this.listTimeEntriesByUserQuery = this.sqlite.query<
 			TimeEntryRow,
@@ -241,7 +242,7 @@ export class Db {
 			"SELECT * FROM time_entries WHERE id = ?",
 		);
 		this.updateTimeEntryQuery = this.sqlite.query(
-			"UPDATE time_entries SET project_id = ?, start_time = ?, end_time = ?, description = ? WHERE id = ?",
+			"UPDATE time_entries SET project_id = ?, start_time = ?, end_time = ?, is_running = ?, description = ? WHERE id = ?",
 		);
 		this.deleteTimeEntryQuery = this.sqlite.query(
 			"DELETE FROM time_entries WHERE id = ?",
@@ -544,10 +545,18 @@ export class Db {
 		userId: number,
 		startTime: string,
 		endTime: string,
+		isRunning: 0 | 1,
 		description?: string,
 	): number {
-		this.insertTimeEntry.run(projectId, userId, startTime, endTime, description ?? null);
-		return this.getLastInsertId();
+		this.insertTimeEntry.run(
+			projectId,
+			userId,
+			startTime,
+			endTime,
+			isRunning,
+			description ?? null,
+		)
+		return this.getLastInsertId()
 	}
 
 	listTimeEntriesForUser(
@@ -575,9 +584,17 @@ export class Db {
 		projectId: number,
 		startTime: string,
 		endTime: string,
+		isRunning: 0 | 1,
 		description?: string | null,
 	): void {
-		this.updateTimeEntryQuery.run(projectId, startTime, endTime, description ?? null, id);
+		this.updateTimeEntryQuery.run(
+			projectId,
+			startTime,
+			endTime,
+			isRunning,
+			description ?? null,
+			id,
+		)
 	}
 
 	deleteTimeEntry(id: number): void {

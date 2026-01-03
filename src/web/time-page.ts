@@ -1,3 +1,5 @@
+import { TimerManager } from "./TimerManager"
+
 type ProjectDTO = {
 	id: number
 	name: string
@@ -8,6 +10,7 @@ type TimeEntryDTO = {
 	project_id: number
 	start_time: string
 	end_time: string
+	is_running: 0 | 1
 	description?: string
 }
 
@@ -30,6 +33,11 @@ const timeFormatter = new Intl.DateTimeFormat(undefined, {
 	minute: "2-digit",
 })
 
+const timeWithSecondsFormatter = new Intl.DateTimeFormat(undefined, {
+	hour: "2-digit",
+	minute: "2-digit",
+	second: "2-digit",
+})
 export async function renderTimeTrackingPage() {
 	const body = ensureBody()
 
@@ -210,12 +218,61 @@ export async function renderTimeTrackingPage() {
 	let projectMap = new Map<number, string>()
 	let projectPickerOpen = false
 	let projectFilterTerm = ""
+	const timerManager = new TimerManager({
+		onTick: (runningIds) => {
+			const now = new Date().toISOString()
+			entries = entries.map((entry) =>
+				runningIds.has(entry.id) ? { ...entry, end_time: now } : entry,
+			)
+			updateView()
+		},
+	})
 
 	function updateView() {
 		if (!rowsContainer || !totalHours || !totalNote) return
 		const filtered = filterEntries(entries, state)
-		renderEntries(filtered, projectMap, rowsContainer)
+		renderEntries(filtered, projectMap, rowsContainer, timerManager.getRunningIds())
 		updateSummary(filtered, totalHours, totalNote, state, projectMap)
+	}
+
+	async function stopTimer(entryId: number) {
+		const now = new Date().toISOString()
+		timerManager.stop(entryId)
+		entries = entries.map((entry) =>
+			entry.id === entryId
+				? { ...entry, end_time: now, is_running: 0 }
+				: entry,
+		)
+		updateView()
+		try {
+			const response = await fetch(`/time-entries/${entryId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({ endTime: now, isRunning: false }),
+			})
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as
+					| { error?: string }
+					| null
+				alert(payload?.error ?? "Unable to stop timer")
+				timerManager.start(entryId)
+				return
+			}
+			const updated = (await response.json().catch(() => null)) as
+				| TimeEntryDTO
+				| null
+			if (updated && typeof updated.id === "number") {
+				entries = entries.map((entry) =>
+					entry.id === updated.id ? updated : entry,
+				)
+				updateView()
+			}
+		} catch (error) {
+			console.error("Failed to stop timer", error)
+			alert("Unable to stop timer")
+			timerManager.start(entryId)
+		}
 	}
 
 	function updateProjectButtonLabel() {
@@ -456,14 +513,16 @@ export async function renderTimeTrackingPage() {
 		}
 		const description = entryDescriptionInput?.value.trim() ?? ""
 		try {
+			const now = new Date().toISOString()
 			const response = await fetch("/time-entries", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				credentials: "include",
 				body: JSON.stringify({
 					projectId: state.projectId,
-					startTime: new Date().toISOString(),
-					endTime: new Date().toISOString(),
+					startTime: now,
+					endTime: now,
+					isRunning: true,
 					description: description || undefined,
 				}),
 			})
@@ -480,11 +539,13 @@ export async function renderTimeTrackingPage() {
 				const newEntry: TimeEntryDTO = {
 					id: Number(json.id),
 					project_id: state.projectId,
-					start_time: new Date().toISOString(),
-					end_time: new Date().toISOString(),
+					start_time: now,
+					end_time: now,
+					is_running: 1,
 					description: description || undefined,
 				}
 				entries = [newEntry, ...entries]
+				timerManager.start(newEntry.id)
 				updateView()
 			}
 		} catch (error) {
@@ -502,6 +563,11 @@ export async function renderTimeTrackingPage() {
 			(a, b) =>
 				new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
 		)
+		for (const entry of entries) {
+			if (entry.is_running === 1) {
+				timerManager.start(entry.id)
+			}
+		}
 		projects = loadedProjects
 		projectMap = new Map(projects.map((project) => [project.id, project.name]))
 		projectFilterTerm = ""
@@ -524,12 +590,22 @@ export async function renderTimeTrackingPage() {
 			totalNote.textContent = "An error occurred"
 		}
 	}
+
+	rowsContainer?.addEventListener("click", (event) => {
+		const target = event.target as HTMLElement
+		const button = target.closest<HTMLButtonElement>("[data-action='stop-timer']")
+		if (!button) return
+		const entryId = Number(button.dataset.id)
+		if (!Number.isInteger(entryId)) return
+		void stopTimer(entryId)
+	})
 }
 
 function renderEntries(
 	entries: TimeEntryDTO[],
 	projectMap: Map<number, string>,
 	container: HTMLDivElement,
+	runningEntryIds: Set<number>,
 ) {
 	if (entries.length === 0) {
 		container.innerHTML =
@@ -543,8 +619,13 @@ function renderEntries(
 			const description = entry.description
 				? `<div class="time-description">${entry.description}</div>`
 				: ""
+			const isActive = runningEntryIds.has(entry.id)
+			const rowClass = isActive ? "time-row time-row--active" : "time-row"
+			const actionMarkup = isActive
+				? `<button class="time-stop" type="button" data-action="stop-timer" data-id="${entry.id}">Stop</button>`
+				: ""
 			return `
-				<div class="time-row">
+				<div class="${rowClass}">
 					<div>
 						<div class="time-task">${projectName}</div>
 						${description}
@@ -553,10 +634,12 @@ function renderEntries(
 					<div class="time-range">${formatTimeRange(
 						entry.start_time,
 						entry.end_time,
+						isActive,
 					)}</div>
-					<div class="time-duration">${formatDurationSeconds(
-						entry,
-					)}</div>
+					<div class="time-duration">
+						<span>${formatDurationSeconds(entry, isActive)}</span>
+						${actionMarkup}
+					</div>
 				</div>
 			`
 		})
@@ -618,9 +701,9 @@ function entryDurationSeconds(entry: TimeEntryDTO) {
 	return Math.round(duration / 1000)
 }
 
-function formatDurationSeconds(entry: TimeEntryDTO) {
+function formatDurationSeconds(entry: TimeEntryDTO, showSeconds = false) {
 	const seconds = entryDurationSeconds(entry)
-	return formatTotalDuration(seconds)
+	return showSeconds ? formatActiveDuration(seconds) : formatTotalDuration(seconds)
 }
 
 function formatTotalDuration(totalSeconds: number) {
@@ -636,6 +719,19 @@ function formatTotalDuration(totalSeconds: number) {
 	return parts.join(" ")
 }
 
+function formatActiveDuration(totalSeconds: number) {
+	const hours = Math.floor(totalSeconds / 3600)
+	const minutes = Math.floor((totalSeconds % 3600) / 60)
+	const seconds = totalSeconds % 60
+	const parts: string[] = []
+	if (hours > 0) {
+		parts.push(`${hours}h`)
+	}
+	parts.push(`${minutes}m`)
+	parts.push(`${seconds}s`)
+	return parts.join(" ")
+}
+
 function formatEntryDate(value: string) {
 	const parsed = new Date(value)
 	if (Number.isNaN(parsed.getTime())) {
@@ -644,15 +740,17 @@ function formatEntryDate(value: string) {
 	return dateFormatter.format(parsed)
 }
 
-function formatTimeRange(start: string, end: string) {
+function formatTimeRange(start: string, end: string, showSeconds = false) {
 	const startDate = new Date(start)
 	const endDate = new Date(end)
 	if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
 		return `${start} — ${end}`
 	}
-	return `${timeFormatter.format(startDate)} — ${timeFormatter.format(
-		endDate,
-	)}`
+	const formatter = showSeconds ? timeWithSecondsFormatter : timeFormatter
+	if (showSeconds) {
+		return `${formatter.format(startDate)} — Now`
+	}
+	return `${formatter.format(startDate)} — ${formatter.format(endDate)}`
 }
 
 async function fetchTimeEntries() {

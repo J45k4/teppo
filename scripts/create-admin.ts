@@ -34,7 +34,7 @@ async function main(): Promise<void> {
 	}
 
 	const sqlite = new Database(DB_PATH, { create: true });
-	runMigrations(sqlite);
+	await runMigrations(sqlite)
 	const db = new Db({ db: sqlite });
 
 	const existing = db.getUserByEmail(email);

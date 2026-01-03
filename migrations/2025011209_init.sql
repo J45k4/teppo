@@ -35,6 +35,7 @@ CREATE TABLE time_entries (
     user_id INTEGER NOT NULL,
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,
+    is_running INTEGER NOT NULL DEFAULT 0,
     description TEXT,
     FOREIGN KEY (user_id) REFERENCES users(id),
     FOREIGN KEY (project_id) REFERENCES projects(id)
