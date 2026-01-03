@@ -1,4 +1,8 @@
 
+## Before starting
+
+1. run ./bootstrap.sh
+
 ## General instructions
 - Always follow the coding practices existing in the code already see .editorconfig file
 - After changes to typescript code always run bun run check
