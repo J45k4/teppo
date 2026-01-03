@@ -7,9 +7,11 @@ import {
 	getSessionUser,
 	login,
 	logout,
+	me,
 	signup,
 	type AuthPayload,
 	type AuthResponse,
+	type MeResponse,
 	type SessionUser,
 } from "./session";
 import {
@@ -102,13 +104,12 @@ import {
 import type { TodoRow } from "./db";
 
 const sqlite = new Database(DB_PATH, { create: true });
-runMigrations(sqlite);
+await runMigrations(sqlite)
 const db = new Db({ db: sqlite });
 const authOptions = { db, requireAuth: true, getUser: getSessionUser };
 
 const server = Bun.serve({
 	routes: {
-		"/": index,
 		"/signup": {
 			POST: wrap<AuthPayload | undefined, AuthResponse>(signup, { db }),
 		},
@@ -120,6 +121,9 @@ const server = Bun.serve({
 				...authOptions,
 				parseBody: false,
 			}),
+		},
+		"/me": {
+			GET: wrap<undefined, MeResponse, SessionUser>(me, authOptions),
 		},
 		"/todo/:id": {
 			GET: wrap<undefined, TodoRow | { error: string }, SessionUser>(
@@ -378,6 +382,7 @@ const server = Bun.serve({
 				authOptions,
 			),
 		},
+		"/*": index,
 	},
 });
 
