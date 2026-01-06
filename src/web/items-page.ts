@@ -35,81 +35,84 @@ export async function renderItemsPage() {
 					<div class="items-summary">
 						<span>Total items</span>
 						<strong id="items-total">0</strong>
-						<span id="items-note">All containers</span>
+						<span id="items-note">Select a container</span>
 					</div>
 				</header>
-				<section class="items-controls">
-					<label>
-						<span>Container</span>
-						<select id="items-container-filter">
-							<option value="">All containers</option>
-						</select>
-					</label>
-					<label>
-						<span>Search</span>
-						<input
-							id="items-search"
-							type="search"
-							placeholder="Search items"
-						/>
-					</label>
-				</section>
-				<section class="items-panels">
-					<form class="items-panel" id="container-form">
-						<header>
-							<h2>Create container</h2>
-							<p>Organize items by storage location.</p>
-						</header>
-						<label>
-							<span>Name</span>
-							<input id="container-name" name="name" type="text" required />
-						</label>
-						<label>
-							<span>Description</span>
-							<input id="container-description" name="description" type="text" />
-						</label>
-						<p class="items-panel-error" id="container-error" aria-live="polite"></p>
-						<button type="submit">Add container</button>
-					</form>
-					<form class="items-panel" id="item-form">
-						<header>
-							<h2>Add item</h2>
-							<p>Track cost, barcode, and notes.</p>
-						</header>
-						<label>
-							<span>Name</span>
-							<input id="item-name" name="name" type="text" required />
-						</label>
-						<label>
-							<span>Container</span>
-							<select id="item-container" name="containerId" required></select>
-						</label>
-						<label>
-							<span>Description</span>
-							<input id="item-description" name="description" type="text" />
-						</label>
-						<label>
-							<span>Barcode</span>
-							<input id="item-barcode" name="barcode" type="text" />
-						</label>
-						<label>
-							<span>Cost</span>
-							<input id="item-cost" name="cost" type="number" step="0.01" />
-						</label>
-						<p class="items-panel-error" id="item-error" aria-live="polite"></p>
-						<button type="submit">Add item</button>
-					</form>
-				</section>
-				<section class="items-list">
-					<div class="items-list-header">
-						<span>Item</span>
-						<span>Container</span>
-						<span>Details</span>
-						<span></span>
-					</div>
-					<div class="items-rows" id="items-rows">
-						<p class="items-empty">Loading items…</p>
-					</div>
+				<section class="items-layout">
+					<aside class="items-sidebar">
+						<div class="items-section-header">
+							<h2>Containers</h2>
+							<p>Choose where you store items.</p>
+						</div>
+						<div class="items-containers" id="items-containers">
+							<p class="items-empty">Loading containers…</p>
+						</div>
+						<form class="items-panel" id="container-form">
+							<header>
+								<h3>Create container</h3>
+								<p>Add a new storage location.</p>
+							</header>
+							<label>
+								<span>Name</span>
+								<input id="container-name" name="name" type="text" required />
+							</label>
+							<label>
+								<span>Description</span>
+								<input id="container-description" name="description" type="text" />
+							</label>
+							<p class="items-panel-error" id="container-error" aria-live="polite"></p>
+							<button type="submit">Add container</button>
+						</form>
+					</aside>
+					<section class="items-content">
+						<div class="items-content-header">
+							<div>
+								<p class="items-subtitle" id="items-container-title">Container</p>
+								<h2 id="items-container-name">Select a container</h2>
+							</div>
+							<div class="items-search">
+								<input
+									id="items-search"
+									type="search"
+									placeholder="Search items"
+								/>
+							</div>
+						</div>
+						<form class="items-panel" id="item-form">
+							<header>
+								<h3>Add item</h3>
+								<p>Save details for the selected container.</p>
+							</header>
+							<label>
+								<span>Name</span>
+								<input id="item-name" name="name" type="text" required />
+							</label>
+							<label>
+								<span>Description</span>
+								<input id="item-description" name="description" type="text" />
+							</label>
+							<label>
+								<span>Barcode</span>
+								<input id="item-barcode" name="barcode" type="text" />
+							</label>
+							<label>
+								<span>Cost</span>
+								<input id="item-cost" name="cost" type="number" step="0.01" />
+							</label>
+							<p class="items-panel-error" id="item-error" aria-live="polite"></p>
+							<button type="submit">Add item</button>
+						</form>
+						<section class="items-list">
+							<div class="items-list-header">
+								<span>Item</span>
+								<span>Details</span>
+								<span></span>
+							</div>
+							<div class="items-rows" id="items-rows">
+								<p class="items-empty">Select a container to view items.</p>
+							</div>
+						</section>
+					</section>
 				</section>
 			</main>
 		</div>
@@ -117,10 +120,7 @@ export async function renderItemsPage() {
 
 	bindNavbarHandlers(body)
 
-	const containerFilter = body.querySelector<HTMLSelectElement>(
-		"#items-container-filter",
-	)
-	const searchInput = body.querySelector<HTMLInputElement>("#items-search")
+	const containersList = body.querySelector<HTMLDivElement>("#items-containers")
 	const containerForm = body.querySelector<HTMLFormElement>("#container-form")
 	const containerNameInput = body.querySelector<HTMLInputElement>("#container-name")
 	const containerDescriptionInput = body.querySelector<HTMLInputElement>(
@@ -131,16 +131,22 @@ export async function renderItemsPage() {
 	)
 	const itemForm = body.querySelector<HTMLFormElement>("#item-form")
 	const itemNameInput = body.querySelector<HTMLInputElement>("#item-name")
-	const itemContainerSelect =
-		body.querySelector<HTMLSelectElement>("#item-container")
-	const itemDescriptionInput =
-		body.querySelector<HTMLInputElement>("#item-description")
+	const itemDescriptionInput = body.querySelector<HTMLInputElement>(
+		"#item-description",
+	)
 	const itemBarcodeInput = body.querySelector<HTMLInputElement>("#item-barcode")
 	const itemCostInput = body.querySelector<HTMLInputElement>("#item-cost")
 	const itemError = body.querySelector<HTMLParagraphElement>("#item-error")
 	const itemsRows = body.querySelector<HTMLDivElement>("#items-rows")
 	const itemsTotal = body.querySelector<HTMLSpanElement>("#items-total")
 	const itemsNote = body.querySelector<HTMLSpanElement>("#items-note")
+	const itemsContainerTitle = body.querySelector<HTMLParagraphElement>(
+		"#items-container-title",
+	)
+	const itemsContainerName = body.querySelector<HTMLHeadingElement>(
+		"#items-container-name",
+	)
+	const searchInput = body.querySelector<HTMLInputElement>("#items-search")
 
 	const state = {
 		containerId: null as number | null,
@@ -151,27 +157,60 @@ export async function renderItemsPage() {
 	let items: ItemDTO[] = []
 	let containerMap = new Map<number, string>()
 
-	function updateFilterOptions() {
-		if (!containerFilter || !itemContainerSelect) return
-		const options = [
-			'<option value="">All containers</option>',
-			...containers.map(
-				(container) =>
-					`<option value="${container.id}">${container.name}</option>`,
-			),
-		]
-		containerFilter.innerHTML = options.join("")
+	const itemFormInputs = [
+		itemNameInput,
+		itemDescriptionInput,
+		itemBarcodeInput,
+		itemCostInput,
+	]
 
-		const itemOptions = containers.map(
-			(container) =>
-				`<option value="${container.id}">${container.name}</option>`,
-		)
-		itemContainerSelect.innerHTML = itemOptions.join("")
-		itemContainerSelect.disabled = containers.length === 0
-		if (containers.length === 0) {
-			itemContainerSelect.innerHTML =
-				'<option value="">Create a container first</option>'
+	function setItemFormEnabled(enabled: boolean) {
+		itemFormInputs.forEach((input) => {
+			if (input) input.disabled = !enabled
+		})
+		const button = itemForm?.querySelector<HTMLButtonElement>("button[type='submit']")
+		if (button) button.disabled = !enabled
+	}
+
+	function updateContainerHeader() {
+		const label = state.containerId
+			? containerMap.get(state.containerId) ?? "Selected container"
+			: "Select a container"
+		if (itemsContainerTitle) {
+			itemsContainerTitle.textContent = state.containerId ? "Container" : "No container"
 		}
+		if (itemsContainerName) {
+			itemsContainerName.textContent = label
+		}
+		setItemFormEnabled(!!state.containerId)
+	}
+
+	function renderContainers() {
+		if (!containersList) return
+		if (containers.length === 0) {
+			containersList.innerHTML =
+				'<p class="items-empty">No containers yet. Create one below.</p>'
+			return
+		}
+		const rows = containers
+			.map((container) => {
+				const isActive = container.id === state.containerId
+				const description = container.description
+					? `<div class="items-container-description">${container.description}</div>`
+					: ""
+				return `
+					<button
+						type="button"
+						class="items-container-card${isActive ? " is-active" : ""}"
+						data-id="${container.id}"
+					>
+						<div class="items-container-name">${container.name}</div>
+						${description}
+					</button>
+				`
+			})
+			.join("")
+		containersList.innerHTML = rows
 	}
 
 	function updateSummary(filtered: ItemDTO[]) {
@@ -179,7 +218,7 @@ export async function renderItemsPage() {
 		itemsTotal.textContent = `${filtered.length}`
 		const containerLabel = state.containerId
 			? containerMap.get(state.containerId) ?? "Selected container"
-			: "All containers"
+			: "No container"
 		itemsNote.textContent = `${containerLabel} • ${filtered.length} item${
 			filtered.length === 1 ? "" : "s"
 		}`
@@ -187,15 +226,18 @@ export async function renderItemsPage() {
 
 	function renderItemsList(filtered: ItemDTO[]) {
 		if (!itemsRows) return
+		if (!state.containerId) {
+			itemsRows.innerHTML =
+				'<p class="items-empty">Select a container to view items.</p>'
+			return
+		}
 		if (filtered.length === 0) {
 			itemsRows.innerHTML =
-				'<p class="items-empty">No items match your filters.</p>'
+				'<p class="items-empty">No items in this container yet.</p>'
 			return
 		}
 		const rows = filtered
 			.map((item) => {
-				const containerName =
-					containerMap.get(item.container_id) ?? "Unknown container"
 				const description = item.description
 					? `<div class="items-description">${item.description}</div>`
 					: ""
@@ -213,7 +255,6 @@ export async function renderItemsPage() {
 							<div class="items-name">${item.name}</div>
 							${description}
 						</div>
-						<div class="items-container">${containerName}</div>
 						<div class="items-details">
 							${details.length > 0 ? details.join(" • ") : "—"}
 						</div>
@@ -239,6 +280,11 @@ export async function renderItemsPage() {
 	}
 
 	async function refreshItems() {
+		if (!state.containerId) {
+			items = []
+			updateView()
+			return
+		}
 		try {
 			const loaded = await fetchItems(state.containerId)
 			items = loaded
@@ -252,10 +298,20 @@ export async function renderItemsPage() {
 		}
 	}
 
-	containerFilter?.addEventListener("change", () => {
-		const value = containerFilter.value
-		state.containerId = value ? Number(value) : null
+	function setSelectedContainer(containerId: number | null) {
+		state.containerId = containerId
+		updateContainerHeader()
+		renderContainers()
 		void refreshItems()
+	}
+
+	containersList?.addEventListener("click", (event) => {
+		const target = event.target as HTMLElement
+		const button = target.closest<HTMLButtonElement>(".items-container-card")
+		if (!button) return
+		const id = Number(button.dataset.id)
+		if (!Number.isInteger(id)) return
+		setSelectedContainer(id)
 	})
 
 	searchInput?.addEventListener("input", () => {
@@ -293,9 +349,12 @@ export async function renderItemsPage() {
 				}
 				return
 			}
+			const json = await response.json().catch(() => null)
+			const createdId =
+				json && typeof json.id === "number" ? Number(json.id) : null
 			containerForm.reset()
-			await loadContainers()
-			updateFilterOptions()
+			await loadContainers(createdId)
+			updateContainerHeader()
 			await refreshItems()
 		} catch (error) {
 			console.error("Failed to create container", error)
@@ -307,16 +366,16 @@ export async function renderItemsPage() {
 
 	itemForm?.addEventListener("submit", async (event) => {
 		event.preventDefault()
-		if (!itemNameInput || !itemContainerSelect) return
+		if (!itemNameInput) return
 		if (itemError) itemError.textContent = ""
 		const name = itemNameInput.value.trim()
-		const containerId = Number(itemContainerSelect.value)
-		if (!name) {
-			if (itemError) itemError.textContent = "Enter a name"
+		const containerId = state.containerId
+		if (!containerId) {
+			if (itemError) itemError.textContent = "Select a container first"
 			return
 		}
-		if (!Number.isInteger(containerId) || containerId <= 0) {
-			if (itemError) itemError.textContent = "Select a container"
+		if (!name) {
+			if (itemError) itemError.textContent = "Enter a name"
 			return
 		}
 		const description = itemDescriptionInput?.value.trim() ?? ""
@@ -384,21 +443,34 @@ export async function renderItemsPage() {
 		}
 	})
 
-	async function loadContainers() {
+	async function loadContainers(preferredId: number | null = null) {
 		const response = await fetch("/api/containers", { credentials: "include" })
 		if (!response.ok) {
 			throw new Error("Failed to load containers")
 		}
 		containers = (await response.json()) as ContainerDTO[]
 		containerMap = new Map(containers.map((container) => [container.id, container.name]))
+		const availableIds = new Set(containers.map((container) => container.id))
+		if (preferredId && availableIds.has(preferredId)) {
+			state.containerId = preferredId
+		} else if (state.containerId && availableIds.has(state.containerId)) {
+			state.containerId = state.containerId
+		} else {
+			state.containerId = containers[0]?.id ?? null
+		}
+		renderContainers()
 	}
 
 	try {
-		await loadContainers()
-		updateFilterOptions()
+		await loadContainers(null)
+		updateContainerHeader()
 		await refreshItems()
 	} catch (error) {
 		console.error("Failed to load items page data", error)
+		if (containersList) {
+			containersList.innerHTML =
+				'<p class="items-empty">Unable to load containers right now.</p>'
+		}
 		if (itemsRows) {
 			itemsRows.innerHTML =
 				'<p class="items-empty">Unable to load items right now.</p>'
@@ -409,14 +481,13 @@ export async function renderItemsPage() {
 		if (itemsNote) {
 			itemsNote.textContent = "An error occurred"
 		}
+		setItemFormEnabled(false)
 	}
 }
 
-async function fetchItems(containerId: number | null) {
+async function fetchItems(containerId: number) {
 	const url = new URL("/api/items", window.location.origin)
-	if (containerId) {
-		url.searchParams.set("containerId", String(containerId))
-	}
+	url.searchParams.set("containerId", String(containerId))
 	const response = await fetch(url.toString(), { credentials: "include" })
 	if (!response.ok) {
 		throw new Error("Failed to load items")
