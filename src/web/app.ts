@@ -3,6 +3,7 @@ import { renderItemsPage } from "./items-page"
 import { renderReceiptDetailPage } from "./receipt-detail-page"
 import { renderReceiptsPage } from "./receipts-page"
 import { renderTimeTrackingPage } from "./time-page"
+import { renderTodoPage } from "./todo-page"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
 
 const serverAddr = window.location.origin
@@ -12,6 +13,7 @@ window.onload = () => {
 		"/login": () => renderLogin(),
 		"/time": () => renderTimeTrackingPage(),
 		"/items": () => renderItemsPage(),
+		"/todos": () => renderTodoPage(),
 		"/receipts": () => renderReceiptsPage(),
 		"/receipts/:id": (params: Record<string, string>) =>
 			renderReceiptDetailPage(params.id),
@@ -40,6 +42,7 @@ function renderHome() {
 				<div class="app-actions">
 					<button id="goto-time" type="button">Open time tracking</button>
 					<button id="goto-items" type="button">Manage items</button>
+					<button id="goto-todos" type="button">Review todos</button>
 					<button id="goto-receipts" type="button">View receipts</button>
 				</div>
 			</main>
@@ -56,6 +59,11 @@ function renderHome() {
 	const itemsButton = document.querySelector<HTMLButtonElement>("#goto-items")
 	if (itemsButton) {
 		itemsButton.addEventListener("click", () => navigate("/items"))
+	}
+
+	const todosButton = document.querySelector<HTMLButtonElement>("#goto-todos")
+	if (todosButton) {
+		todosButton.addEventListener("click", () => navigate("/todos"))
 	}
 
 	const receiptsButton =
