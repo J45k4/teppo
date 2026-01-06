@@ -1,3 +1,4 @@
+import { createModal } from "./modal"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
 import { navigate } from "./router"
 
@@ -31,25 +32,13 @@ export async function renderReceiptsPage() {
 					</div>
 				</header>
 				<section class="receipts-controls">
-					<form class="receipts-panel" id="receipt-form">
+					<div class="receipts-panel">
 						<header>
 							<h2>Add receipt</h2>
 							<p>Record a new purchase total.</p>
 						</header>
-						<label>
-							<span>Amount</span>
-							<input
-								id="receipt-amount"
-								name="amount"
-								type="number"
-								step="0.01"
-								min="0"
-								required
-							/>
-						</label>
-						<p class="receipts-panel-error" id="receipt-error" aria-live="polite"></p>
-						<button type="submit">Add receipt</button>
-					</form>
+						<button type="button" id="open-receipt-modal">Add receipt</button>
+					</div>
 				</section>
 				<section class="receipts-list">
 					<div class="receipts-list-header">
@@ -63,19 +52,57 @@ export async function renderReceiptsPage() {
 				</section>
 			</main>
 		</div>
+		<div class="modal-backdrop" id="receipt-modal" aria-hidden="true">
+			<form class="modal" id="receipt-form">
+				<p class="receipts-title">Add receipt</p>
+				<label>
+					<span>Amount</span>
+					<input
+						id="receipt-amount"
+						name="amount"
+						type="number"
+						step="0.01"
+						min="0"
+						required
+					/>
+				</label>
+				<p class="modal-error" id="receipt-error" aria-live="polite"></p>
+				<div class="modal-actions">
+					<button type="button" id="receipt-cancel">Cancel</button>
+					<button type="submit">Add receipt</button>
+				</div>
+			</form>
+		</div>
 	`
 
 	bindNavbarHandlers(body)
 
+	const openReceiptModalButton = body.querySelector<HTMLButtonElement>(
+		"#open-receipt-modal",
+	)
+	const receiptModalBackdrop = body.querySelector<HTMLDivElement>("#receipt-modal")
 	const receiptForm = body.querySelector<HTMLFormElement>("#receipt-form")
 	const receiptAmountInput =
 		body.querySelector<HTMLInputElement>("#receipt-amount")
 	const receiptError = body.querySelector<HTMLParagraphElement>("#receipt-error")
+	const receiptCancel = body.querySelector<HTMLButtonElement>("#receipt-cancel")
 	const receiptsRows = body.querySelector<HTMLDivElement>("#receipts-rows")
 	const receiptsTotal = body.querySelector<HTMLSpanElement>("#receipts-total")
 	const receiptsNote = body.querySelector<HTMLSpanElement>("#receipts-note")
 
 	let receipts: ReceiptDTO[] = []
+
+	const receiptModal = createModal({
+		backdrop: receiptModalBackdrop,
+		focusTarget: receiptAmountInput,
+		onOpen: () => {
+			if (receiptError) receiptError.textContent = ""
+		},
+		onClose: () => {
+			receiptForm?.reset()
+			if (receiptError) receiptError.textContent = ""
+		},
+	})
 
 	function updateSummary() {
 		if (!receiptsTotal || !receiptsNote) return
@@ -143,6 +170,14 @@ export async function renderReceiptsPage() {
 		updateView()
 	}
 
+	openReceiptModalButton?.addEventListener("click", () => {
+		receiptModal.open()
+	})
+
+	receiptCancel?.addEventListener("click", () => {
+		receiptModal.close()
+	})
+
 	receiptForm?.addEventListener("submit", async (event) => {
 		event.preventDefault()
 		if (!receiptAmountInput) return
@@ -180,7 +215,7 @@ export async function renderReceiptsPage() {
 			} else {
 				await loadReceipts()
 			}
-			receiptForm.reset()
+			receiptModal.close()
 		} catch (error) {
 			console.error("Failed to add receipt", error)
 			if (receiptError) {

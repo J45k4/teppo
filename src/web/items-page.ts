@@ -1,3 +1,4 @@
+import { createModal } from "./modal"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
 
 type ContainerDTO = {
@@ -47,22 +48,13 @@ export async function renderItemsPage() {
 						<div class="items-containers" id="items-containers">
 							<p class="items-empty">Loading containers…</p>
 						</div>
-						<form class="items-panel" id="container-form">
+						<div class="items-panel">
 							<header>
 								<h3>Create container</h3>
 								<p>Add a new storage location.</p>
 							</header>
-							<label>
-								<span>Name</span>
-								<input id="container-name" name="name" type="text" required />
-							</label>
-							<label>
-								<span>Description</span>
-								<input id="container-description" name="description" type="text" />
-							</label>
-							<p class="items-panel-error" id="container-error" aria-live="polite"></p>
-							<button type="submit">Add container</button>
-						</form>
+							<button type="button" id="open-container-modal">Add container</button>
+						</div>
 					</aside>
 					<section class="items-content">
 						<div class="items-content-header">
@@ -78,30 +70,13 @@ export async function renderItemsPage() {
 								/>
 							</div>
 						</div>
-						<form class="items-panel" id="item-form">
+						<div class="items-panel">
 							<header>
 								<h3>Add item</h3>
 								<p>Save details for the selected container.</p>
 							</header>
-							<label>
-								<span>Name</span>
-								<input id="item-name" name="name" type="text" required />
-							</label>
-							<label>
-								<span>Description</span>
-								<input id="item-description" name="description" type="text" />
-							</label>
-							<label>
-								<span>Barcode</span>
-								<input id="item-barcode" name="barcode" type="text" />
-							</label>
-							<label>
-								<span>Cost</span>
-								<input id="item-cost" name="cost" type="number" step="0.01" />
-							</label>
-							<p class="items-panel-error" id="item-error" aria-live="polite"></p>
-							<button type="submit">Add item</button>
-						</form>
+							<button type="button" id="open-item-modal">Add item</button>
+						</div>
 						<section class="items-list">
 							<div class="items-list-header">
 								<span>Item</span>
@@ -116,11 +91,62 @@ export async function renderItemsPage() {
 				</section>
 			</main>
 		</div>
+		<div class="modal-backdrop" id="container-modal" aria-hidden="true">
+			<form class="modal" id="container-form">
+				<p class="items-title">Create container</p>
+				<label>
+					<span>Name</span>
+					<input id="container-name" name="name" type="text" required />
+				</label>
+				<label>
+					<span>Description</span>
+					<input id="container-description" name="description" type="text" />
+				</label>
+				<p class="modal-error" id="container-error" aria-live="polite"></p>
+				<div class="modal-actions">
+					<button type="button" id="container-cancel">Cancel</button>
+					<button type="submit">Add container</button>
+				</div>
+			</form>
+		</div>
+		<div class="modal-backdrop" id="item-modal" aria-hidden="true">
+			<form class="modal" id="item-form">
+				<p class="items-title">Add item</p>
+				<label>
+					<span>Name</span>
+					<input id="item-name" name="name" type="text" required />
+				</label>
+				<label>
+					<span>Description</span>
+					<input id="item-description" name="description" type="text" />
+				</label>
+				<label>
+					<span>Barcode</span>
+					<input id="item-barcode" name="barcode" type="text" />
+				</label>
+				<label>
+					<span>Cost</span>
+					<input id="item-cost" name="cost" type="number" step="0.01" />
+				</label>
+				<p class="modal-error" id="item-error" aria-live="polite"></p>
+				<div class="modal-actions">
+					<button type="button" id="item-cancel">Cancel</button>
+					<button type="submit">Add item</button>
+				</div>
+			</form>
+		</div>
 	`
 
 	bindNavbarHandlers(body)
 
 	const containersList = body.querySelector<HTMLDivElement>("#items-containers")
+	const openContainerModalButton = body.querySelector<HTMLButtonElement>(
+		"#open-container-modal",
+	)
+	const openItemModalButton =
+		body.querySelector<HTMLButtonElement>("#open-item-modal")
+	const containerModalBackdrop =
+		body.querySelector<HTMLDivElement>("#container-modal")
 	const containerForm = body.querySelector<HTMLFormElement>("#container-form")
 	const containerNameInput = body.querySelector<HTMLInputElement>("#container-name")
 	const containerDescriptionInput = body.querySelector<HTMLInputElement>(
@@ -129,6 +155,8 @@ export async function renderItemsPage() {
 	const containerError = body.querySelector<HTMLParagraphElement>(
 		"#container-error",
 	)
+	const containerCancel = body.querySelector<HTMLButtonElement>("#container-cancel")
+	const itemModalBackdrop = body.querySelector<HTMLDivElement>("#item-modal")
 	const itemForm = body.querySelector<HTMLFormElement>("#item-form")
 	const itemNameInput = body.querySelector<HTMLInputElement>("#item-name")
 	const itemDescriptionInput = body.querySelector<HTMLInputElement>(
@@ -137,6 +165,7 @@ export async function renderItemsPage() {
 	const itemBarcodeInput = body.querySelector<HTMLInputElement>("#item-barcode")
 	const itemCostInput = body.querySelector<HTMLInputElement>("#item-cost")
 	const itemError = body.querySelector<HTMLParagraphElement>("#item-error")
+	const itemCancel = body.querySelector<HTMLButtonElement>("#item-cancel")
 	const itemsRows = body.querySelector<HTMLDivElement>("#items-rows")
 	const itemsTotal = body.querySelector<HTMLSpanElement>("#items-total")
 	const itemsNote = body.querySelector<HTMLSpanElement>("#items-note")
@@ -164,12 +193,35 @@ export async function renderItemsPage() {
 		itemCostInput,
 	]
 
+	const containerModal = createModal({
+		backdrop: containerModalBackdrop,
+		focusTarget: containerNameInput,
+		onOpen: () => {
+			if (containerError) containerError.textContent = ""
+		},
+		onClose: () => {
+			containerForm?.reset()
+			if (containerError) containerError.textContent = ""
+		},
+	})
+
+	const itemModal = createModal({
+		backdrop: itemModalBackdrop,
+		focusTarget: itemNameInput,
+		onOpen: () => {
+			if (itemError) itemError.textContent = ""
+		},
+		onClose: () => {
+			itemForm?.reset()
+			if (itemError) itemError.textContent = ""
+		},
+	})
+
 	function setItemFormEnabled(enabled: boolean) {
 		itemFormInputs.forEach((input) => {
 			if (input) input.disabled = !enabled
 		})
-		const button = itemForm?.querySelector<HTMLButtonElement>("button[type='submit']")
-		if (button) button.disabled = !enabled
+		if (openItemModalButton) openItemModalButton.disabled = !enabled
 	}
 
 	function updateContainerHeader() {
@@ -319,6 +371,23 @@ export async function renderItemsPage() {
 		updateView()
 	})
 
+	openContainerModalButton?.addEventListener("click", () => {
+		containerModal.open()
+	})
+
+	openItemModalButton?.addEventListener("click", () => {
+		if (!state.containerId) return
+		itemModal.open()
+	})
+
+	containerCancel?.addEventListener("click", () => {
+		containerModal.close()
+	})
+
+	itemCancel?.addEventListener("click", () => {
+		itemModal.close()
+	})
+
 	containerForm?.addEventListener("submit", async (event) => {
 		event.preventDefault()
 		if (!containerNameInput) return
@@ -352,7 +421,7 @@ export async function renderItemsPage() {
 			const json = await response.json().catch(() => null)
 			const createdId =
 				json && typeof json.id === "number" ? Number(json.id) : null
-			containerForm.reset()
+			containerModal.close()
 			await loadContainers(createdId)
 			updateContainerHeader()
 			await refreshItems()
@@ -408,7 +477,7 @@ export async function renderItemsPage() {
 				}
 				return
 			}
-			itemForm.reset()
+			itemModal.close()
 			await refreshItems()
 		} catch (error) {
 			console.error("Failed to create item", error)
