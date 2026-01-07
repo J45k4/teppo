@@ -1052,7 +1052,8 @@ input {
 
 .receipt-detail-controls {
 	display: grid;
-	grid-template-columns: minmax(240px, 360px);
+	grid-template-columns: repeat(auto-fit, minmax(240px, 360px));
+	gap: 16px;
 }
 
 .receipt-detail-panel {
@@ -1082,6 +1083,13 @@ input {
 }
 
 .receipt-detail-panel select {
+	padding: 10px 12px;
+	border-radius: 12px;
+	border: 1px solid var(--line);
+	background: #fff;
+}
+
+.receipt-detail-panel input {
 	padding: 10px 12px;
 	border-radius: 12px;
 	border: 1px solid var(--line);
@@ -1206,6 +1214,19 @@ input {
 	border-radius: 12px;
 	border: 1px solid #d9d4cd;
 	font-size: 14px;
+}
+
+.modal select {
+	padding: 12px 14px;
+	border-radius: 12px;
+	border: 1px solid #d9d4cd;
+	font-size: 14px;
+	background: #fff;
+}
+
+.modal input[readonly] {
+	background: #f6f3ee;
+	color: var(--muted);
 }
 
 .modal-error {
