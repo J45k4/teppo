@@ -8,6 +8,10 @@
 - After changes to typescript code always run bun run check
 - no semicolons in javascript or typescript code
 
+## Testing
+
+When making api changes you can test the api directly and you can easily make your own queries into the sqlite database. So you can just get cookies and make fetch requests to test apis you modify.
+
 
 ## Bun specific instructions
 
