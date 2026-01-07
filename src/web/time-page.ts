@@ -565,10 +565,11 @@ export async function renderTimeTrackingPage() {
 			fetchTimeEntries(),
 			fetchProjects(),
 		])
-		entries = loadedEntries.sort(
-			(a, b) =>
-				new Date(b.start_time).getTime() - new Date(a.start_time).getTime(),
-		)
+		entries = loadedEntries.sort((a, b) => {
+			const aTime = parseTimestamp(a.start_time)?.getTime() ?? 0
+			const bTime = parseTimestamp(b.start_time)?.getTime() ?? 0
+			return bTime - aTime
+		})
 		for (const entry of entries) {
 			if (entry.is_running === 1) {
 				timerManager.start(entry.id)
@@ -664,9 +665,10 @@ function filterEntries(
 	if (state.rangeDays > 0) {
 		const threshold = new Date()
 		threshold.setDate(threshold.getDate() - state.rangeDays)
-		filtered = filtered.filter(
-			(entry) => new Date(entry.start_time) >= threshold,
-		)
+		filtered = filtered.filter((entry) => {
+			const parsed = parseTimestamp(entry.start_time)
+			return parsed ? parsed >= threshold : true
+		})
 	}
 	if (state.projectId) {
 		filtered = filtered.filter(
@@ -701,8 +703,11 @@ function updateSummary(
 }
 
 function entryDurationSeconds(entry: TimeEntryDTO) {
-	const start = new Date(entry.start_time).getTime()
-	const end = new Date(entry.end_time).getTime()
+	const start = parseTimestamp(entry.start_time)?.getTime()
+	const end = parseTimestamp(entry.end_time)?.getTime()
+	if (!start || !end) {
+		return 0
+	}
 	const duration = Math.max(0, end - start)
 	return Math.round(duration / 1000)
 }
@@ -739,17 +744,14 @@ function formatActiveDuration(totalSeconds: number) {
 }
 
 function formatEntryDate(value: string) {
-	const parsed = new Date(value)
-	if (Number.isNaN(parsed.getTime())) {
-		return value
-	}
-	return dateFormatter.format(parsed)
+	const parsed = parseTimestamp(value)
+	return parsed ? dateFormatter.format(parsed) : value
 }
 
 function formatTimeRange(start: string, end: string, showSeconds = false) {
-	const startDate = new Date(start)
-	const endDate = new Date(end)
-	if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+	const startDate = parseTimestamp(start)
+	const endDate = parseTimestamp(end)
+	if (!startDate || !endDate) {
 		return `${start} — ${end}`
 	}
 	const formatter = showSeconds ? timeWithSecondsFormatter : timeFormatter
@@ -757,6 +759,21 @@ function formatTimeRange(start: string, end: string, showSeconds = false) {
 		return `${formatter.format(startDate)} — Now`
 	}
 	return `${formatter.format(startDate)} — ${formatter.format(endDate)}`
+}
+
+function parseTimestamp(value: string) {
+	const direct = new Date(value)
+	if (!Number.isNaN(direct.getTime())) {
+		return direct
+	}
+	if (value.includes(" ")) {
+		const normalized = value.replace(" ", "T")
+		const parsed = new Date(normalized)
+		if (!Number.isNaN(parsed.getTime())) {
+			return parsed
+		}
+	}
+	return null
 }
 
 async function fetchTimeEntries() {

@@ -224,20 +224,23 @@ export class Db {
 		);
 		this.listTimeEntriesByUserQuery = this.sqlite.query<
 			TimeEntryRow,
-			{
-				userId: number;
-				start?: string | null;
-				end?: string | null;
-				projectId?: number | null;
-			}
+			[
+				number,
+				string | null,
+				string | null,
+				string | null,
+				string | null,
+				number | null,
+				number | null,
+			]
 		>(`
 			SELECT * FROM time_entries
-			WHERE user_id = $userId
-				AND ($start IS NULL OR start_time >= $start)
-				AND ($end IS NULL OR end_time <= $end)
-				AND ($projectId IS NULL OR project_id = $projectId)
+			WHERE user_id = ?
+				AND (? IS NULL OR start_time >= ?)
+				AND (? IS NULL OR end_time <= ?)
+				AND (? IS NULL OR project_id = ?)
 			ORDER BY start_time DESC
-		`);
+		`)
 		this.getTimeEntryByIdQuery = this.sqlite.query<TimeEntryRow, number>(
 			"SELECT * FROM time_entries WHERE id = ?",
 		);
@@ -563,14 +566,18 @@ export class Db {
 		userId: number,
 		options: { start?: string; end?: string; projectId?: number } = {},
 	): TimeEntryRow[] {
+		const start = options.start ?? null
+		const end = options.end ?? null
+		const projectId = options.projectId ?? null
 		return (this.listTimeEntriesByUserQuery as ReturnType<Database["query"]>).all(
-			{
-				userId,
-				start: options.start ?? null,
-				end: options.end ?? null,
-				projectId: options.projectId ?? null,
-			},
-		) as TimeEntryRow[];
+			userId,
+			start,
+			start,
+			end,
+			end,
+			projectId,
+			projectId,
+		) as TimeEntryRow[]
 	}
 
 	getTimeEntryById(id: number): TimeEntryRow | null {
