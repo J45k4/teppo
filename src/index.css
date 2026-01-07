@@ -804,35 +804,12 @@ input {
 .todos-controls {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-end;
 	gap: 16px;
 	background: #f4f2ed;
 	padding: 16px;
 	border-radius: 14px;
 	flex-wrap: wrap;
-}
-
-.todos-filters {
-	display: flex;
-	gap: 8px;
-	flex-wrap: wrap;
-}
-
-.todos-filters button {
-	border: 1px solid var(--line);
-	border-radius: 999px;
-	background: #fff;
-	color: var(--muted);
-	font-weight: 600;
-	padding: 8px 14px;
-	cursor: pointer;
-	transition: border 0.2s ease, color 0.2s ease, background 0.2s ease;
-}
-
-.todos-filters button.is-active {
-	background: var(--accent);
-	border-color: var(--accent);
-	color: #fff;
 }
 
 .todos-actions {
@@ -878,33 +855,64 @@ input {
 	display: none;
 }
 
-.todos-list {
-	border: 1px solid var(--line);
-	border-radius: 16px;
-	overflow: hidden;
+.todos-board {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: 16px;
 }
 
-.todos-list-header {
+.todos-column {
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	background: #fdfbf8;
+	padding: 16px;
 	display: grid;
-	grid-template-columns: minmax(220px, 1.6fr) minmax(140px, 1fr) minmax(90px, 0.6fr) auto;
-	gap: 12px;
-	padding: 14px 18px;
-	background: #eef1f2;
-	font-weight: 600;
+	gap: 16px;
+}
+
+.todos-column-header {
+	display: grid;
+	gap: 6px;
+}
+
+.todos-column-title {
+	font-weight: 700;
+	font-size: 16px;
+}
+
+.todos-column-meta {
+	color: var(--muted);
+	font-size: 12px;
+}
+
+.todos-column-section {
+	display: grid;
+	gap: 10px;
+}
+
+.todos-column-label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
 	color: var(--muted);
 }
 
-.todos-rows {
+.todos-card-list {
 	display: grid;
+	gap: 12px;
 }
 
-.todos-row {
+.todos-card {
+	border-radius: 14px;
+	border: 1px solid var(--line);
+	background: #fff;
+	padding: 12px;
 	display: grid;
-	grid-template-columns: minmax(220px, 1.6fr) minmax(140px, 1fr) minmax(90px, 0.6fr) auto;
-	gap: 12px;
-	padding: 18px;
-	border-top: 1px solid var(--line);
-	align-items: center;
+	gap: 8px;
+}
+
+.todos-card.is-done {
+	background: #f3f1ec;
 }
 
 .todos-name {
@@ -936,13 +944,13 @@ input {
 	color: var(--muted);
 }
 
-.todos-row-actions {
+.todos-card-actions {
 	display: flex;
-	justify-content: flex-end;
+	justify-content: flex-start;
 	gap: 8px;
 }
 
-.todos-row-actions button {
+.todos-card-actions button {
 	border: 1px solid var(--line);
 	border-radius: 999px;
 	background: #fff;
@@ -953,7 +961,7 @@ input {
 	transition: border 0.2s ease, color 0.2s ease;
 }
 
-.todos-row-actions button:hover {
+.todos-card-actions button:hover {
 	border-color: var(--accent);
 	color: var(--accent);
 }
@@ -962,6 +970,16 @@ input {
 	padding: 18px;
 	text-align: center;
 	color: var(--muted);
+}
+
+.todos-column-empty {
+	padding: 10px;
+	text-align: center;
+	color: var(--muted);
+	font-size: 13px;
+	background: #fff;
+	border-radius: 12px;
+	border: 1px dashed var(--line);
 }
 
 .receipt-detail-page {
@@ -1447,14 +1465,8 @@ input {
 		align-items: flex-start;
 	}
 
-	.todos-list-header,
-	.todos-row {
+	.todos-board {
 		grid-template-columns: 1fr;
-		text-align: left;
-	}
-
-	.todos-row-actions {
-		justify-content: flex-start;
 	}
 
 	.receipt-detail-page {

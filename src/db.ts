@@ -374,14 +374,14 @@ export class Db {
 		);
 		this.listTodosByUserQuery = this.sqlite.query<
 			TodoRow,
-			{ userId: number; done?: 0 | 1 | null; projectId?: number | null }
+			{ $userId: number; $done?: 0 | 1 | null; $projectId?: number | null }
 		>(`
 			SELECT * FROM todos
 			WHERE user_id = $userId
 				AND ($done IS NULL OR done = $done)
 				AND ($projectId IS NULL OR project_id = $projectId)
 			ORDER BY COALESCE(deadline, created_at) ASC
-		`);
+		`)
 		this.getTodoByIdQuery = this.sqlite.query<TodoRow, number>(
 			"SELECT * FROM todos WHERE id = ?",
 		);
@@ -865,10 +865,10 @@ export class Db {
 		options: { done?: 0 | 1; projectId?: number } = {},
 	): TodoRow[] {
 		return (this.listTodosByUserQuery as ReturnType<Database["query"]>).all({
-			userId,
-			done: options.done ?? null,
-			projectId: options.projectId ?? null,
-		}) as TodoRow[];
+			$userId: userId,
+			$done: options.done ?? null,
+			$projectId: options.projectId ?? null,
+		}) as TodoRow[]
 	}
 
 	getTodoById(todoId: number): TodoRow | null {

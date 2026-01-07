@@ -43,13 +43,6 @@ export async function renderTodoPage() {
 					</div>
 				</header>
 				<section class="todos-controls">
-					<div class="todos-filters">
-						<button type="button" data-filter="all" class="is-active">
-							All
-						</button>
-						<button type="button" data-filter="open">Open</button>
-						<button type="button" data-filter="done">Done</button>
-					</div>
 					<div class="todos-actions">
 						<button type="button" id="open-todo-modal">Add todo</button>
 						<button type="button" id="todos-create-project" class="todos-secondary">
@@ -58,16 +51,8 @@ export async function renderTodoPage() {
 					</div>
 				</section>
 				<p class="todos-hint" id="todos-hint"></p>
-				<section class="todos-list">
-					<div class="todos-list-header">
-						<span>Task</span>
-						<span>Project</span>
-						<span>Status</span>
-						<span></span>
-					</div>
-					<div class="todos-rows" id="todos-rows">
-						<p class="todos-empty">Loading todos…</p>
-					</div>
+				<section class="todos-board" id="todos-board">
+					<p class="todos-empty">Loading todos…</p>
 				</section>
 			</main>
 		</div>
@@ -117,20 +102,12 @@ export async function renderTodoPage() {
 		body.querySelector<HTMLInputElement>("#todo-deadline")
 	const todoError = body.querySelector<HTMLParagraphElement>("#todo-error")
 	const todoCancel = body.querySelector<HTMLButtonElement>("#todo-cancel")
-	const todosRows = body.querySelector<HTMLDivElement>("#todos-rows")
+	const todosBoard = body.querySelector<HTMLDivElement>("#todos-board")
 	const todosTotal = body.querySelector<HTMLSpanElement>("#todos-total")
 	const todosNote = body.querySelector<HTMLSpanElement>("#todos-note")
-	const filterButtons = body.querySelectorAll<HTMLButtonElement>(
-		"[data-filter]",
-	)
-
-	const state = {
-		filter: "all" as "all" | "open" | "done",
-	}
 
 	let todos: TodoDTO[] = []
 	let projects: ProjectDTO[] = []
-	let projectMap = new Map<number, string>()
 
 	const todoModal = createModal({
 		backdrop: todoModalBackdrop,
@@ -143,15 +120,6 @@ export async function renderTodoPage() {
 			if (todoError) todoError.textContent = ""
 		},
 	})
-
-	function updateFilterButtons() {
-		filterButtons.forEach((button) => {
-			const filter = button.dataset.filter ?? "all"
-			const isActive = filter === state.filter
-			button.classList.toggle("is-active", isActive)
-			button.setAttribute("aria-pressed", String(isActive))
-		})
-	}
 
 	function updateProjectOptions() {
 		if (!todoProjectSelect) return
@@ -197,16 +165,6 @@ export async function renderTodoPage() {
 		todosNote.textContent = `${completedCount} completed`
 	}
 
-	function getFilteredTodos() {
-		if (state.filter === "open") {
-			return todos.filter((todo) => todo.done === 0)
-		}
-		if (state.filter === "done") {
-			return todos.filter((todo) => todo.done === 1)
-		}
-		return todos
-	}
-
 	function formatDeadline(deadline: string | null | undefined) {
 		if (!deadline) return null
 		const parsed = new Date(deadline)
@@ -216,67 +174,130 @@ export async function renderTodoPage() {
 		return dateFormatter.format(parsed)
 	}
 
-	function renderTodosList(filtered: TodoDTO[]) {
-		if (!todosRows) return
-		if (filtered.length === 0) {
-			const emptyMessage =
-				state.filter === "done"
-					? "No completed todos yet."
-					: state.filter === "open"
-						? "No open todos yet."
-						: "No todos yet."
-			todosRows.innerHTML = `<p class="todos-empty">${emptyMessage}</p>`
-			return
-		}
-		const rows = filtered
-			.map((todo) => {
-				const projectName =
-					projectMap.get(todo.project_id) ?? "Unknown project"
-				const deadline = formatDeadline(todo.deadline)
-				const description = todo.description
-					? `<div class="todos-description">${todo.description}</div>`
-					: ""
-				const deadlineMarkup = deadline
-					? `<div class="todos-deadline">Due ${deadline}</div>`
-					: ""
-				const isDone = todo.done === 1
-				return `
-					<div class="todos-row">
-						<div>
+	function renderTodosBoard() {
+		if (!todosBoard) return
+		const projectIds = new Set(projects.map((project) => project.id))
+		const orphanedTodos = todos.filter(
+			(todo) => !projectIds.has(todo.project_id),
+		)
+
+		const renderCards = (entries: TodoDTO[], stateLabel: string) => {
+			if (entries.length === 0) {
+				return `<p class="todos-column-empty">No ${stateLabel} todos.</p>`
+			}
+			return entries
+				.map((todo) => {
+					const deadline = formatDeadline(todo.deadline)
+					const description = todo.description
+						? `<div class="todos-description">${todo.description}</div>`
+						: ""
+					const deadlineMarkup = deadline
+						? `<div class="todos-deadline">Due ${deadline}</div>`
+						: ""
+					const isDone = todo.done === 1
+					return `
+						<div class="todos-card${isDone ? " is-done" : ""}">
 							<div class="todos-name${isDone ? " is-done" : ""}">
 								${todo.name}
 							</div>
 							${description}
 							${deadlineMarkup}
+							<div class="todos-card-actions">
+								<button
+									type="button"
+									data-action="toggle-todo"
+									data-id="${todo.id}"
+								>
+									${isDone ? "Reopen" : "Mark done"}
+								</button>
+								<button
+									type="button"
+									data-action="delete-todo"
+									data-id="${todo.id}"
+								>
+									Delete
+								</button>
+							</div>
 						</div>
-						<div class="todos-project">${projectName}</div>
-						<div class="todos-status${isDone ? " is-done" : ""}">
-							${isDone ? "Done" : "Open"}
+					`
+				})
+				.join("")
+		}
+
+		const columns = projects
+			.map((project) => {
+				const projectTodos = todos.filter(
+					(todo) => todo.project_id === project.id,
+				)
+				const openTodos = projectTodos.filter((todo) => todo.done === 0)
+				const doneTodos = projectTodos.filter((todo) => todo.done === 1)
+
+				return `
+					<section class="todos-column">
+						<header class="todos-column-header">
+							<div class="todos-column-title">${project.name}</div>
+							<div class="todos-column-meta">
+								${openTodos.length} open • ${doneTodos.length} done
+							</div>
+						</header>
+						<div class="todos-column-section">
+							<p class="todos-column-label">Open</p>
+							<div class="todos-card-list">
+								${renderCards(openTodos, "open")}
+							</div>
 						</div>
-						<div class="todos-row-actions">
-							<button
-								type="button"
-								data-action="toggle-todo"
-								data-id="${todo.id}"
-							>
-								${isDone ? "Reopen" : "Mark done"}
-							</button>
-							<button type="button" data-action="delete-todo" data-id="${todo.id}">
-								Delete
-							</button>
+						<div class="todos-column-section">
+							<p class="todos-column-label">Done</p>
+							<div class="todos-card-list">
+								${renderCards(doneTodos, "completed")}
+							</div>
 						</div>
-					</div>
+					</section>
 				`
 			})
 			.join("")
-		todosRows.innerHTML = rows
+
+		const orphanColumn = orphanedTodos.length
+			? `
+				<section class="todos-column">
+					<header class="todos-column-header">
+						<div class="todos-column-title">Unassigned</div>
+						<div class="todos-column-meta">
+							${orphanedTodos.filter((todo) => todo.done === 0).length} open • ${
+				orphanedTodos.filter((todo) => todo.done === 1).length
+			} done
+						</div>
+					</header>
+					<div class="todos-column-section">
+						<p class="todos-column-label">Open</p>
+						<div class="todos-card-list">
+							${renderCards(
+								orphanedTodos.filter((todo) => todo.done === 0),
+								"open",
+							)}
+						</div>
+					</div>
+					<div class="todos-column-section">
+						<p class="todos-column-label">Done</p>
+						<div class="todos-card-list">
+							${renderCards(
+								orphanedTodos.filter((todo) => todo.done === 1),
+								"completed",
+							)}
+						</div>
+					</div>
+				</section>
+			`
+			: ""
+
+		const boardMarkup = [columns, orphanColumn].filter(Boolean).join("")
+		todosBoard.innerHTML =
+			boardMarkup || `<p class="todos-empty">No todos yet.</p>`
 	}
 
 	function updateView() {
-		updateFilterButtons()
-		const filtered = getFilteredTodos()
-		updateSummary(filtered)
-		renderTodosList(filtered)
+		updateSummary(todos)
+		renderTodosBoard()
 	}
 
 	async function loadProjects() {
@@ -285,7 +306,6 @@ export async function renderTodoPage() {
 			throw new Error("Failed to load projects")
 		}
 		projects = (await response.json()) as ProjectDTO[]
-		projectMap = new Map(projects.map((project) => [project.id, project.name]))
 		updateProjectOptions()
 		updateProjectAvailability()
 		updateView()
@@ -296,19 +316,14 @@ export async function renderTodoPage() {
 		if (!response.ok) {
 			throw new Error("Failed to load todos")
 		}
-		todos = (await response.json()) as TodoDTO[]
+		const payload = (await response.json()) as TodoDTO[]
+		todos = payload.map((todo) => ({
+			...todo,
+			project_id: Number(todo.project_id),
+			done: todo.done ? 1 : 0,
+		}))
 		updateView()
 	}
-
-	filterButtons.forEach((button) => {
-		button.addEventListener("click", () => {
-			const filter = button.dataset.filter
-			if (filter === "open" || filter === "done" || filter === "all") {
-				state.filter = filter
-				updateView()
-			}
-		})
-	})
 
 	openTodoModalButton?.addEventListener("click", () => {
 		if (projects.length === 0) return
@@ -371,7 +386,7 @@ export async function renderTodoPage() {
 		}
 	})
 
-	todosRows?.addEventListener("click", async (event) => {
+	todosBoard?.addEventListener("click", async (event) => {
 		const target = event.target as HTMLElement
 		const button = target.closest<HTMLButtonElement>("[data-action]")
 		if (!button) return
@@ -426,8 +441,8 @@ export async function renderTodoPage() {
 		await Promise.all([loadProjects(), loadTodos()])
 	} catch (error) {
 		console.error("Failed to load todo data", error)
-		if (todosRows) {
-			todosRows.innerHTML =
+		if (todosBoard) {
+			todosBoard.innerHTML =
 				'<p class="todos-empty">Unable to load todos right now.</p>'
 		}
 		if (todoHint) {
