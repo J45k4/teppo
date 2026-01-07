@@ -163,6 +163,38 @@ export async function renderTimeTrackingPage() {
 				</div>
 			</form>
 		</div>
+		<div
+			class="modal-backdrop"
+			id="time-entry-modal"
+			aria-hidden="true"
+		>
+			<form class="modal" id="time-entry-form">
+				<p class="time-title">Edit time entry</p>
+				<label>
+					<span>Start</span>
+					<input
+						id="time-entry-start"
+						name="start"
+						type="datetime-local"
+						required
+					/>
+				</label>
+				<label>
+					<span>End</span>
+					<input
+						id="time-entry-end"
+						name="end"
+						type="datetime-local"
+						required
+					/>
+				</label>
+				<p class="modal-error" id="time-entry-error" aria-live="polite"></p>
+				<div class="modal-actions">
+					<button type="button" id="time-entry-cancel">Cancel</button>
+					<button type="submit">Save changes</button>
+				</div>
+			</form>
+		</div>
 	`
 
 	bindNavbarHandlers(body)
@@ -213,6 +245,21 @@ export async function renderTimeTrackingPage() {
 	const entryDescriptionInput = body.querySelector<HTMLInputElement>(
 		"#entry-description",
 	)
+	const timeEntryModalBackdrop =
+		body.querySelector<HTMLDivElement>("#time-entry-modal")
+	const timeEntryForm = body.querySelector<HTMLFormElement>("#time-entry-form")
+	const timeEntryStartInput = body.querySelector<HTMLInputElement>(
+		"#time-entry-start",
+	)
+	const timeEntryEndInput = body.querySelector<HTMLInputElement>(
+		"#time-entry-end",
+	)
+	const timeEntryError = body.querySelector<HTMLParagraphElement>(
+		"#time-entry-error",
+	)
+	const timeEntryCancel = body.querySelector<HTMLButtonElement>(
+		"#time-entry-cancel",
+	)
 
 	const state = {
 		rangeDays: defaultRangeDays,
@@ -224,6 +271,7 @@ export async function renderTimeTrackingPage() {
 	let projectMap = new Map<number, string>()
 	let projectPickerOpen = false
 	let projectFilterTerm = ""
+	let editingEntryId: number | null = null
 	const timerManager = new TimerManager({
 		onTick: (runningIds) => {
 			const now = new Date().toISOString()
@@ -436,9 +484,41 @@ export async function renderTimeTrackingPage() {
 		projectNameInput?.focus()
 	}
 
+	const closeEntryModal = () => {
+		timeEntryModalBackdrop?.classList.remove("is-visible")
+		timeEntryModalBackdrop?.setAttribute("aria-hidden", "true")
+		timeEntryForm?.reset()
+		editingEntryId = null
+		if (timeEntryError) {
+			timeEntryError.textContent = ""
+		}
+	}
+
+	const openEntryModal = (entry: TimeEntryDTO) => {
+		if (!timeEntryStartInput || !timeEntryEndInput) return
+		const startValue = formatDatetimeLocal(entry.start_time)
+		const endValue = formatDatetimeLocal(entry.end_time)
+		if (!startValue || !endValue) return
+		editingEntryId = entry.id
+		timeEntryStartInput.value = startValue
+		timeEntryEndInput.value = endValue
+		timeEntryModalBackdrop?.classList.add("is-visible")
+		timeEntryModalBackdrop?.setAttribute("aria-hidden", "false")
+		timeEntryStartInput.focus()
+		if (timeEntryError) {
+			timeEntryError.textContent = ""
+		}
+	}
+
 	modalBackdrop?.addEventListener("click", (event) => {
 		if (event.target === modalBackdrop) {
 			closeModal()
+		}
+	})
+
+	timeEntryModalBackdrop?.addEventListener("click", (event) => {
+		if (event.target === timeEntryModalBackdrop) {
+			closeEntryModal()
 		}
 	})
 
@@ -447,6 +527,7 @@ export async function renderTimeTrackingPage() {
 		void startTimer()
 	})
 	projectCancel?.addEventListener("click", closeModal)
+	timeEntryCancel?.addEventListener("click", closeEntryModal)
 
 	projectForm?.addEventListener("submit", async (event) => {
 		event.preventDefault()
@@ -508,6 +589,75 @@ export async function renderTimeTrackingPage() {
 			console.error("Failed to create project", error)
 			if (projectError) {
 				projectError.textContent = "Unable to create project"
+			}
+		}
+	})
+
+	timeEntryForm?.addEventListener("submit", async (event) => {
+		event.preventDefault()
+		if (!timeEntryStartInput || !timeEntryEndInput) return
+		if (timeEntryError) {
+			timeEntryError.textContent = ""
+		}
+		if (!editingEntryId) return
+		const startValue = timeEntryStartInput.value
+		const endValue = timeEntryEndInput.value
+		if (!startValue || !endValue) {
+			if (timeEntryError) {
+				timeEntryError.textContent = "Start and end are required"
+			}
+			return
+		}
+		const startIso = toIsoString(startValue)
+		const endIso = toIsoString(endValue)
+		if (!startIso || !endIso) {
+			if (timeEntryError) {
+				timeEntryError.textContent = "Invalid date format"
+			}
+			return
+		}
+		if (new Date(endIso).getTime() < new Date(startIso).getTime()) {
+			if (timeEntryError) {
+				timeEntryError.textContent = "End time must be after start time"
+			}
+			return
+		}
+		try {
+			const response = await fetch(`/api/time-entries/${editingEntryId}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					startTime: startIso,
+					endTime: endIso,
+					isRunning: false,
+				}),
+			})
+			if (!response.ok) {
+				const payload = (await response.json().catch(() => null)) as
+					| { error?: string }
+					| null
+				if (timeEntryError) {
+					timeEntryError.textContent =
+						payload?.error ?? "Unable to update entry"
+				}
+				return
+			}
+			const updated = (await response.json().catch(() => null)) as
+				| TimeEntryDTO
+				| null
+			if (updated && typeof updated.id === "number") {
+				entries = entries.map((entry) =>
+					entry.id === updated.id ? updated : entry,
+				)
+				timerManager.stop(updated.id)
+				updateView()
+				closeEntryModal()
+			}
+		} catch (error) {
+			console.error("Failed to update time entry", error)
+			if (timeEntryError) {
+				timeEntryError.textContent = "Unable to update entry"
 			}
 		}
 	})
@@ -606,6 +756,18 @@ export async function renderTimeTrackingPage() {
 		if (!Number.isInteger(entryId)) return
 		void stopTimer(entryId)
 	})
+
+	rowsContainer?.addEventListener("click", (event) => {
+		const target = event.target as HTMLElement
+		if (target.closest("[data-action='stop-timer']")) return
+		const row = target.closest<HTMLDivElement>(".time-row")
+		if (!row) return
+		const entryId = Number(row.dataset.id)
+		if (!Number.isInteger(entryId)) return
+		const entry = entries.find((item) => item.id === entryId)
+		if (!entry) return
+		openEntryModal(entry)
+	})
 }
 
 function renderEntries(
@@ -632,7 +794,7 @@ function renderEntries(
 				? `<button class="time-stop" type="button" data-action="stop-timer" data-id="${entry.id}">Stop</button>`
 				: ""
 			return `
-				<div class="${rowClass}">
+				<div class="${rowClass}" data-id="${entry.id}">
 					<div>
 						<div class="time-task">${projectName}</div>
 						${description}
@@ -774,6 +936,23 @@ function parseTimestamp(value: string) {
 		}
 	}
 	return null
+}
+
+function formatDatetimeLocal(value: string) {
+	const parsed = parseTimestamp(value)
+	if (!parsed) return ""
+	const year = parsed.getFullYear()
+	const month = String(parsed.getMonth() + 1).padStart(2, "0")
+	const day = String(parsed.getDate()).padStart(2, "0")
+	const hours = String(parsed.getHours()).padStart(2, "0")
+	const minutes = String(parsed.getMinutes()).padStart(2, "0")
+	return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
+function toIsoString(value: string) {
+	const parsed = new Date(value)
+	if (Number.isNaN(parsed.getTime())) return null
+	return parsed.toISOString()
 }
 
 async function fetchTimeEntries() {
