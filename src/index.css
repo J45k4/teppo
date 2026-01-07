@@ -909,10 +909,20 @@ input {
 	padding: 12px;
 	display: grid;
 	gap: 8px;
+	cursor: grab;
 }
 
 .todos-card.is-done {
 	background: #f3f1ec;
+}
+
+.todos-card.is-dragging {
+	opacity: 0.6;
+	cursor: grabbing;
+}
+
+.todos-column-section {
+	min-height: 80px;
 }
 
 .todos-name {

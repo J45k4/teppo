@@ -109,6 +109,24 @@ export async function renderTodoPage() {
 	let todos: TodoDTO[] = []
 	let projects: ProjectDTO[] = []
 
+	const getProjectIdFromDrop = (target: EventTarget | null) => {
+		if (!(target instanceof HTMLElement)) return null
+		const column = target.closest<HTMLElement>("[data-project-id]")
+		if (!column) return null
+		const id = column.dataset.projectId ?? ""
+		if (!id || id === "unassigned") return null
+		const parsed = Number(id)
+		return Number.isInteger(parsed) ? parsed : null
+	}
+
+	const getStatusFromDrop = (target: EventTarget | null) => {
+		if (!(target instanceof HTMLElement)) return null
+		const section = target.closest<HTMLElement>("[data-status]")
+		const status = section?.dataset.status ?? null
+		if (status === "open" || status === "done") return status
+		return null
+	}
+
 	const todoModal = createModal({
 		backdrop: todoModalBackdrop,
 		focusTarget: todoNameInput,
@@ -196,7 +214,7 @@ export async function renderTodoPage() {
 						: ""
 					const isDone = todo.done === 1
 					return `
-						<div class="todos-card${isDone ? " is-done" : ""}">
+						<div class="todos-card${isDone ? " is-done" : ""}" draggable="true" data-todo-id="${todo.id}">
 							<div class="todos-name${isDone ? " is-done" : ""}">
 								${todo.name}
 							</div>
@@ -233,20 +251,20 @@ export async function renderTodoPage() {
 				const doneTodos = projectTodos.filter((todo) => todo.done === 1)
 
 				return `
-					<section class="todos-column">
+					<section class="todos-column" data-project-id="${project.id}">
 						<header class="todos-column-header">
 							<div class="todos-column-title">${project.name}</div>
 							<div class="todos-column-meta">
 								${openTodos.length} open • ${doneTodos.length} done
 							</div>
 						</header>
-						<div class="todos-column-section">
+						<div class="todos-column-section" data-status="open">
 							<p class="todos-column-label">Open</p>
 							<div class="todos-card-list">
 								${renderCards(openTodos, "open")}
 							</div>
 						</div>
-						<div class="todos-column-section">
+						<div class="todos-column-section" data-status="done">
 							<p class="todos-column-label">Done</p>
 							<div class="todos-card-list">
 								${renderCards(doneTodos, "completed")}
@@ -259,7 +277,7 @@ export async function renderTodoPage() {
 
 		const orphanColumn = orphanedTodos.length
 			? `
-				<section class="todos-column">
+				<section class="todos-column" data-project-id="unassigned">
 					<header class="todos-column-header">
 						<div class="todos-column-title">Unassigned</div>
 						<div class="todos-column-meta">
@@ -268,7 +286,7 @@ export async function renderTodoPage() {
 			} done
 						</div>
 					</header>
-					<div class="todos-column-section">
+					<div class="todos-column-section" data-status="open">
 						<p class="todos-column-label">Open</p>
 						<div class="todos-card-list">
 							${renderCards(
@@ -277,7 +295,7 @@ export async function renderTodoPage() {
 							)}
 						</div>
 					</div>
-					<div class="todos-column-section">
+					<div class="todos-column-section" data-status="done">
 						<p class="todos-column-label">Done</p>
 						<div class="todos-card-list">
 							${renderCards(
@@ -434,6 +452,69 @@ export async function renderTodoPage() {
 				console.error("Failed to update todo", error)
 				alert("Unable to update todo")
 			}
+		}
+	})
+
+	todosBoard?.addEventListener("dragstart", (event) => {
+		const target = event.target as HTMLElement
+		const card = target.closest<HTMLElement>("[data-todo-id]")
+		if (!card || !(event instanceof DragEvent)) return
+		const id = card.dataset.todoId
+		if (!id) return
+		event.dataTransfer?.setData("text/plain", id)
+		event.dataTransfer?.setData("application/x-teppo-todo", id)
+		event.dataTransfer?.setDragImage(card, 20, 20)
+		card.classList.add("is-dragging")
+	})
+
+	todosBoard?.addEventListener("dragend", (event) => {
+		const target = event.target as HTMLElement
+		const card = target.closest<HTMLElement>("[data-todo-id]")
+		card?.classList.remove("is-dragging")
+	})
+
+	todosBoard?.addEventListener("dragover", (event) => {
+		const target = event.target as HTMLElement
+		if (!target.closest("[data-project-id]")) return
+		event.preventDefault()
+	})
+
+	todosBoard?.addEventListener("drop", async (event) => {
+		event.preventDefault()
+		const data =
+			event.dataTransfer?.getData("application/x-teppo-todo") ??
+			event.dataTransfer?.getData("text/plain")
+		const id = Number(data)
+		if (!Number.isInteger(id)) return
+		const todo = todos.find((entry) => entry.id === id)
+		if (!todo) return
+		const nextProjectId = getProjectIdFromDrop(event.target)
+		const status = getStatusFromDrop(event.target)
+		if (!nextProjectId || !status) return
+		const nextDone = status === "done"
+		if (todo.project_id === nextProjectId && todo.done === (nextDone ? 1 : 0)) {
+			return
+		}
+		try {
+			const response = await fetch(`/api/todo/${id}`, {
+				method: "PATCH",
+				headers: { "Content-Type": "application/json" },
+				credentials: "include",
+				body: JSON.stringify({
+					projectId: nextProjectId,
+					done: nextDone,
+				}),
+			})
+			if (!response.ok) {
+				alert("Unable to move todo")
+				return
+			}
+			const updated = (await response.json()) as TodoDTO
+			todos = todos.map((entry) => (entry.id === id ? updated : entry))
+			updateView()
+		} catch (error) {
+			console.error("Failed to move todo", error)
+			alert("Unable to move todo")
 		}
 	})
 
