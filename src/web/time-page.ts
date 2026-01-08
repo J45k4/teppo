@@ -68,51 +68,6 @@ export async function renderTimeTrackingPage() {
 				</header>
 				<section class="time-controls">
 					<div class="time-control-options">
-						<div class="project-picker" id="project-picker">
-							<button
-								id="project-picker-button"
-								type="button"
-								aria-haspopup="listbox"
-								aria-expanded="false"
-							>
-								<span class="project-picker-title">Project</span>
-								<strong id="project-picker-value">All projects</strong>
-								<span class="project-picker-chevron" aria-hidden="true">▾</span>
-							</button>
-							<div
-								class="project-picker-panel"
-								id="project-picker-panel"
-								aria-hidden="true"
-							>
-								<header class="project-picker-header">
-									<span>No client</span>
-									<span id="project-picker-count" class="project-picker-count">0 Projects</span>
-								</header>
-								<div class="project-picker-search">
-									<input
-										id="project-search"
-										type="search"
-										placeholder="Search project or client"
-									/>
-								</div>
-								<div class="project-picker-list" id="project-picker-list">
-									<p class="project-picker-empty">Loading projects…</p>
-								</div>
-								<button
-									type="button"
-									class="project-picker-create"
-									id="project-picker-create"
-								>
-									+ Create new project
-								</button>
-							</div>
-						</div>
-						<label>
-							<span>Range</span>
-							<select id="range-select">
-								${rangeOptionsMarkup}
-							</select>
-						</label>
 						<label>
 							<span>Description</span>
 							<input
@@ -123,11 +78,59 @@ export async function renderTimeTrackingPage() {
 						</label>
 					</div>
 					<div class="time-control-actions">
-						<button id="start-timer" type="button">Start timer</button>
-						<button id="create-project" type="button">Create project</button>
+						<div class="time-control-buttons">
+							<div class="project-picker" id="project-picker">
+								<button
+									id="project-picker-button"
+									type="button"
+									aria-haspopup="listbox"
+									aria-expanded="false"
+								>
+									<span class="project-picker-title">Project</span>
+									<strong id="project-picker-value">All projects</strong>
+									<span class="project-picker-chevron" aria-hidden="true">▾</span>
+								</button>
+								<div
+									class="project-picker-panel"
+									id="project-picker-panel"
+									aria-hidden="true"
+								>
+									<header class="project-picker-header">
+										<span>No client</span>
+										<span id="project-picker-count" class="project-picker-count">0 Projects</span>
+									</header>
+									<div class="project-picker-search">
+										<input
+											id="project-search"
+											type="search"
+											placeholder="Search project or client"
+										/>
+									</div>
+									<div class="project-picker-list" id="project-picker-list">
+										<p class="project-picker-empty">Loading projects…</p>
+									</div>
+									<button
+										type="button"
+										class="project-picker-create"
+										id="project-picker-create"
+									>
+										+ Create new project
+									</button>
+								</div>
+							</div>
+							<button id="start-timer" type="button">Start timer</button>
+						</div>
 					</div>
 				</section>
 				<section class="time-list">
+					<div class="time-list-controls">
+						<label>
+							<span>Range</span>
+							<select id="range-select">
+								${rangeOptionsMarkup}
+							</select>
+						</label>
+					</div>
 					<div class="time-list-header">
 						<span>Project</span>
 						<span>Date</span>

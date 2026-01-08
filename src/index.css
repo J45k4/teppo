@@ -217,6 +217,12 @@ input {
 }
 
 .time-control-actions {
+	display: grid;
+	gap: 12px;
+	justify-items: end;
+}
+
+.time-control-buttons {
 	display: flex;
 	gap: 12px;
 }
@@ -245,6 +251,27 @@ input {
 	border: 1px solid var(--line);
 	border-radius: 16px;
 	overflow: hidden;
+}
+
+.time-list-controls {
+	padding: 16px 18px 0;
+	background: #fff;
+	margin-bottom: 12px;
+}
+
+.time-list-controls label {
+	display: grid;
+	gap: 6px;
+	font-size: 13px;
+	color: var(--muted);
+	max-width: 220px;
+}
+
+.time-list-controls select {
+	padding: 10px 12px;
+	border-radius: 10px;
+	border: 1px solid #d9d4cd;
+	background: #fff;
 }
 
 .time-list-header {
@@ -1419,6 +1446,15 @@ input {
 
 	.time-controls {
 		grid-template-columns: 1fr;
+	}
+
+	.time-control-actions {
+		justify-items: stretch;
+	}
+
+	.time-control-buttons {
+		justify-content: flex-start;
+		flex-wrap: wrap;
 	}
 
 	.time-row {
