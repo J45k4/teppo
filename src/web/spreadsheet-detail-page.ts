@@ -19,7 +19,7 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 
 const columnLabels = ["A", "B", "C", "D", "E", "F", "G", "H"]
 const rowLabels = [1, 2, 3, 4, 5, 6, 7, 8]
-const defaultSheetPrompt = 'Type "=AI" to insert a Gemini prompt in any cell'
+const defaultSheetPrompt = ''
 
 export async function renderSpreadsheetDetailPage(idParam: string | number) {
 	const body = ensureBody()
@@ -47,16 +47,17 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 							<span class="spreadsheet-meta-id">ID —</span>
 							<span class="spreadsheet-meta-date">Loading…</span>
 						</div>
-						<div class="spreadsheet-sheet" aria-live="polite">
-							<div class="spreadsheet-sheet-col-labels">
-								<span></span>
-								${columnLabels
-									.map(
-										(label) =>
-											`<span class="spreadsheet-sheet-col-label">${label}</span>`,
-									)
-									.join("")}
-							</div>
+			<div class="spreadsheet-sheet" aria-live="polite">
+				<span class="spreadsheet-sheet-corner"></span>
+				<div class="spreadsheet-sheet-col-labels">
+					${columnLabels
+						.map(
+							(label) =>
+								`<span class="spreadsheet-sheet-col-label">${label}</span>`,
+						)
+						.join("")}
+				</div>
+
 							<div class="spreadsheet-sheet-body">
 								<div class="spreadsheet-sheet-row-labels">
 									${rowLabels
@@ -186,7 +187,7 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 			sheetGrid.style.gridTemplateRows = gridRows
 		}
 		if (columnLabelContainer) {
-			columnLabelContainer.style.gridTemplateColumns = `40px ${gridColumns}`
+			columnLabelContainer.style.gridTemplateColumns = gridColumns
 		}
 		if (rowLabelContainer) {
 			rowLabelContainer.style.gridTemplateRows = gridRows
