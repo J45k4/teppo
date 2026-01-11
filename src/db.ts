@@ -88,6 +88,7 @@ export type SpreadsheetRow = {
 	user_id: number
 	name: string
 	description: string | null
+	state: string | null
 	created_at: string
 }
 
@@ -170,6 +171,7 @@ export class Db {
 	private insertSpreadsheet: ReturnType<Database["query"]>
 	private listSpreadsheetsByUserQuery: ReturnType<Database["query"]>
 	private getSpreadsheetByIdForUserQuery: ReturnType<Database["query"]>
+	private updateSpreadsheetStateQuery!: ReturnType<Database["query"]>
 	private insertReceiptItem: ReturnType<Database["query"]>
 	private listReceiptItemsQuery: ReturnType<Database["query"]>;
 	private listReceiptItemsByReceiptForUserQuery: ReturnType<Database["query"]>;
@@ -430,6 +432,9 @@ export class Db {
 			[number, number]
 		>(
 			"SELECT * FROM spreadsheets WHERE id = ? AND user_id = ? LIMIT 1",
+		)
+		this.updateSpreadsheetStateQuery = this.sqlite.query(
+			"UPDATE spreadsheets SET state = ? WHERE id = ? AND user_id = ?",
 		)
 		this.insertReceiptItem = this.sqlite.query(
 			"INSERT INTO receipt_items (receipt_id, item_id) VALUES (?, ?)",
@@ -970,6 +975,14 @@ export class Db {
 		return (
 			this.getSpreadsheetByIdForUserQuery as ReturnType<Database["query"]>
 		).get(spreadsheetId, userId) as SpreadsheetRow | null
+	}
+
+	updateSpreadsheetStateForUser(
+		spreadsheetId: number,
+		userId: number,
+		state: string | null,
+	): void {
+		this.updateSpreadsheetStateQuery.run(state, spreadsheetId, userId)
 	}
 
 	updateReceipt(id: number, amount: number): void {

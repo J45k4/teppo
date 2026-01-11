@@ -105,7 +105,9 @@ import {
 	createSpreadsheet,
 	getSpreadsheet,
 	listSpreadsheets,
+	updateSpreadsheetState,
 	type SpreadsheetCreatePayload,
+	type SpreadsheetStatePayload,
 } from "./spreadsheets";
 import type { TodoRow, SpreadsheetRow } from "./db";
 
@@ -357,6 +359,13 @@ const server = Bun.serve({
 				getSpreadsheet,
 				authOptions,
 			),
+		},
+		"/api/spreadsheets/:id/state": {
+			PATCH: wrap<
+				SpreadsheetStatePayload | undefined,
+				{ ok: true },
+				SessionUser
+			>(updateSpreadsheetState, authOptions),
 		},
 		"/api/receipts": {
 			GET: wrap<undefined, ReturnType<typeof listReceipts>, SessionUser>(

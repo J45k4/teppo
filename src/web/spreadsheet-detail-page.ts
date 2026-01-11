@@ -7,6 +7,7 @@ type SpreadsheetDetailDTO = {
 	id: number
 	name: string
 	description?: string | null
+	state: string | null
 	created_at: string
 }
 
@@ -20,6 +21,13 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
 const columnLabels = ["A", "B", "C", "D", "E", "F", "G", "H"]
 const rowLabels = [1, 2, 3, 4, 5, 6, 7, 8]
 const defaultSheetPrompt = ''
+
+type SpreadsheetStateV1 = {
+	version: 1
+	cells: Record<string, string>
+	columnWidths: number[]
+	rowHeights: number[]
+}
 
 export async function renderSpreadsheetDetailPage(idParam: string | number) {
 	const body = ensureBody()
@@ -93,6 +101,9 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 	let sheetPrompt = defaultSheetPrompt
 	const columnWidths = columnLabels.map(() => 80)
 	const rowHeights = rowLabels.map(() => 48)
+	let cellInputs: Record<string, string> = {}
+	let saveTimer: ReturnType<typeof setTimeout> | null = null
+	let didResize = false
 
 	backButton?.addEventListener("click", () => navigate("/spreadsheets"))
 
@@ -135,6 +146,9 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 			metaDate.textContent = formatDate(data.created_at)
 		}
 		sheetPrompt = data.description?.trim() ?? defaultSheetPrompt
+		applyPersistedState(data.state)
+		applySheetSizing()
+		initializeResizers()
 		renderSheetGrid(sheetPrompt)
 	}
 
@@ -150,6 +164,118 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 		}
 		if (sheetGrid) {
 			sheetGrid.innerHTML = `<p class="spreadsheet-sheet-error">${message}</p>`
+		}
+	}
+
+	function applyPersistedState(value: string | null) {
+		if (!value) {
+			cellInputs = {}
+			return
+		}
+
+		let parsed: unknown
+		try {
+			parsed = JSON.parse(value)
+		} catch {
+			return
+		}
+
+		if (!parsed || typeof parsed !== "object") return
+		const state = parsed as Partial<SpreadsheetStateV1>
+		const nextCells: Record<string, string> = {}
+		if (state.cells && typeof state.cells === "object") {
+			Object.entries(state.cells).forEach(([key, val]) => {
+				if (typeof val === "string") {
+					nextCells[key] = val
+				}
+			})
+		}
+
+		if (Array.isArray(state.columnWidths) && state.columnWidths.length === columnWidths.length) {
+			state.columnWidths.forEach((width, index) => {
+				if (typeof width === "number" && Number.isFinite(width) && width >= 40) {
+					columnWidths[index] = width
+				}
+			})
+		}
+
+		if (Array.isArray(state.rowHeights) && state.rowHeights.length === rowHeights.length) {
+			state.rowHeights.forEach((height, index) => {
+				if (typeof height === "number" && Number.isFinite(height) && height >= 32) {
+					rowHeights[index] = height
+				}
+			})
+		}
+
+		cellInputs = nextCells
+		engine.graph.cells.clear()
+		Object.entries(cellInputs).forEach(([cellId, input]) => {
+			applyCellInput(cellId, input)
+		})
+	}
+
+	function applyCellInput(cellId: string, text: string) {
+		const trimmed = text.trim()
+		if (!trimmed) {
+			engine.setValue(cellId, { kind: "empty" })
+			return
+		}
+
+		try {
+			if (trimmed.startsWith("=")) {
+				const expr = parseExprFromString(trimmed.slice(1))
+				engine.setFormula(cellId, expr, trimmed)
+				return
+			}
+
+			if (!Number.isNaN(Number(trimmed))) {
+				engine.setValue(cellId, { kind: "number", value: Number(trimmed) })
+				return
+			}
+
+			if (/^TRUE$/i.test(trimmed) || /^FALSE$/i.test(trimmed)) {
+				engine.setValue(cellId, { kind: "boolean", value: /^TRUE$/i.test(trimmed) })
+				return
+			}
+
+			engine.setValue(cellId, { kind: "string", value: trimmed })
+		} catch (error: any) {
+			engine.setValue(cellId, { kind: "error", message: error.message })
+		}
+	}
+
+	function buildStateForSave(): SpreadsheetStateV1 {
+		return {
+			version: 1,
+			cells: cellInputs,
+			columnWidths,
+			rowHeights,
+		}
+	}
+
+	function scheduleSaveState() {
+		if (saveTimer) {
+			clearTimeout(saveTimer)
+		}
+		saveTimer = setTimeout(() => {
+			saveTimer = null
+			void saveStateNow()
+		}, 500)
+	}
+
+	async function saveStateNow() {
+		try {
+			const response = await fetch(`/api/spreadsheets/${spreadsheetId}/state`, {
+				method: "PATCH",
+				credentials: "include",
+				headers: { "content-type": "application/json" },
+				body: JSON.stringify({ state: buildStateForSave() }),
+			})
+			if (!response.ok) {
+				console.warn("Failed to save spreadsheet state", response.status)
+			}
+		} catch (error) {
+			console.warn("Failed to save spreadsheet state", error)
 		}
 	}
 
@@ -241,6 +367,7 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 		const target = event.currentTarget as HTMLElement
 		const index = Number(target.dataset.index)
 		if (!Number.isInteger(index)) return
+		didResize = true
 		activeResize = {
 			type: "column",
 			index,
@@ -256,6 +383,7 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 		const target = event.currentTarget as HTMLElement
 		const index = Number(target.dataset.index)
 		if (!Number.isInteger(index)) return
+		didResize = true
 		activeResize = {
 			type: "row",
 			index,
@@ -269,6 +397,7 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 
 	function handlePointerMove(event: PointerEvent) {
 		if (!activeResize) return
+		didResize = true
 		if (activeResize.type === "column") {
 			const delta = event.clientX - activeResize.start
 			columnWidths[activeResize.index] = Math.max(40, activeResize.initial + delta)
@@ -282,6 +411,10 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 	function stopResize() {
 		activeResize = null
 		document.removeEventListener("pointermove", handlePointerMove)
+		if (didResize) {
+			didResize = false
+			scheduleSaveState()
+		}
 	}
 
 	let activeEditor:
@@ -303,7 +436,7 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 		if (activeEditor && activeEditor.element === cell) return
 
 		const node = engine.getCell(cellId)
-		const initialText = getEditorText(node)
+		const initialText = getEditorText(cellId, node)
 		let committed = false
 		const cleanup = () => {
 			cell.classList.remove("is-editing")
@@ -316,27 +449,15 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 			options?: { updateOnly?: boolean },
 		) => {
 			if (text !== null) {
-				if (!text) {
-					engine.setValue(cellId, { kind: "empty" })
+				const trimmed = text.trim()
+				if (!trimmed) {
+					delete cellInputs[cellId]
+					applyCellInput(cellId, "")
 				} else {
-					try {
-						if (text.startsWith("=")) {
-							const expr = parseExprFromString(text.slice(1))
-							engine.setFormula(cellId, expr, text)
-						} else if (!Number.isNaN(Number(text))) {
-							engine.setValue(cellId, { kind: "number", value: Number(text) })
-						} else if (/^TRUE$/i.test(text) || /^FALSE$/i.test(text)) {
-							engine.setValue(cellId, {
-								kind: "boolean",
-								value: /^TRUE$/i.test(text),
-							})
-						} else {
-							engine.setValue(cellId, { kind: "string", value: text })
-						}
-					} catch (error: any) {
-						engine.setValue(cellId, { kind: "error", message: error.message })
-					}
+					cellInputs[cellId] = trimmed
+					applyCellInput(cellId, trimmed)
 				}
+				scheduleSaveState()
 			}
 			cleanup()
 			activeEditor = null
@@ -415,7 +536,8 @@ export async function renderSpreadsheetDetailPage(idParam: string | number) {
 		return ""
 	}
 
-	function getEditorText(node: { raw?: string; value: CellValue }) {
+	function getEditorText(cellId: string, node: { raw?: string; value: CellValue }) {
+		if (cellInputs[cellId]) return cellInputs[cellId]
 		if (node.raw) return node.raw
 		switch (node.value.kind) {
 			case "number":
