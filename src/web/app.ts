@@ -2,6 +2,8 @@ import { markSessionStatus, navigate, routes } from "./router"
 import { renderItemsPage } from "./items-page"
 import { renderReceiptDetailPage } from "./receipt-detail-page"
 import { renderReceiptsPage } from "./receipts-page"
+import { renderSpreadsheetsPage } from "./spreadsheets-page"
+import { renderSpreadsheetDetailPage } from "./spreadsheet-detail-page"
 import { renderTimeTrackingPage } from "./time-page"
 import { renderTodoPage } from "./todo-page"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
@@ -17,6 +19,9 @@ window.onload = () => {
 		"/receipts": () => renderReceiptsPage(),
 		"/receipts/:id": (params: Record<string, string>) =>
 			renderReceiptDetailPage(params.id),
+		"/spreadsheets": () => renderSpreadsheetsPage(),
+		"/spreadsheets/:id": (params: Record<string, string>) =>
+			renderSpreadsheetDetailPage(params.id ?? ""),
 		"/*": () => renderHome(),
 	})
 
@@ -39,12 +44,13 @@ function renderHome() {
 			<main class="app-shell">
 				<h1>Teppo</h1>
 				<p>Welcome back. Your workspace is ready.</p>
-				<div class="app-actions">
-					<button id="goto-time" type="button">Open time tracking</button>
-					<button id="goto-items" type="button">Manage items</button>
-					<button id="goto-todos" type="button">Review todos</button>
-					<button id="goto-receipts" type="button">View receipts</button>
-				</div>
+			<div class="app-actions">
+				<button id="goto-time" type="button">Open time tracking</button>
+				<button id="goto-items" type="button">Manage items</button>
+				<button id="goto-todos" type="button">Review todos</button>
+				<button id="goto-receipts" type="button">View receipts</button>
+				<button id="goto-spreadsheets" type="button">View spreadsheets</button>
+			</div>
 			</main>
 		</div>
 	`
@@ -70,6 +76,13 @@ function renderHome() {
 		document.querySelector<HTMLButtonElement>("#goto-receipts")
 	if (receiptsButton) {
 		receiptsButton.addEventListener("click", () => navigate("/receipts"))
+	}
+	const spreadsheetsButton =
+		document.querySelector<HTMLButtonElement>("#goto-spreadsheets")
+	if (spreadsheetsButton) {
+		spreadsheetsButton.addEventListener("click", () =>
+			navigate("/spreadsheets"),
+		)
 	}
 }
 

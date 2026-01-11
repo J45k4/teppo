@@ -1,6 +1,6 @@
 import { markSessionStatus, navigate } from "./router"
 
-type NavKey = "home" | "time" | "items" | "receipts" | "todos"
+type NavKey = "home" | "time" | "items" | "receipts" | "todos" | "spreadsheets"
 
 const navRoutes: Record<NavKey, { label: string, path: string }> = {
 	home: { label: "Home", path: "/" },
@@ -8,6 +8,7 @@ const navRoutes: Record<NavKey, { label: string, path: string }> = {
 	items: { label: "Items", path: "/items" },
 	todos: { label: "Todos", path: "/todos" },
 	receipts: { label: "Receipts", path: "/receipts" },
+	spreadsheets: { label: "Spreadsheets", path: "/spreadsheets" },
 }
 
 export function renderNavbar(active: NavKey) {

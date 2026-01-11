@@ -101,7 +101,13 @@ import {
 	listReceiptItems,
 	type ReceiptItemCreatePayload,
 } from "./receipt-items";
-import type { TodoRow } from "./db";
+import {
+	createSpreadsheet,
+	getSpreadsheet,
+	listSpreadsheets,
+	type SpreadsheetCreatePayload,
+} from "./spreadsheets";
+import type { TodoRow, SpreadsheetRow } from "./db";
 
 const sqlite = new Database(DB_PATH, { create: true });
 await runMigrations(sqlite)
@@ -332,6 +338,23 @@ const server = Bun.serve({
 			>(updateItemMetadata, authOptions),
 			DELETE: wrap<undefined, { ok: true }, SessionUser>(
 				deleteItemMetadata,
+				authOptions,
+			),
+		},
+		"/api/spreadsheets": {
+			GET: wrap<undefined, ReturnType<typeof listSpreadsheets>, SessionUser>(
+				listSpreadsheets,
+				authOptions,
+			),
+			POST: wrap<
+				SpreadsheetCreatePayload | undefined,
+				{ id: number },
+				SessionUser
+			>(createSpreadsheet, authOptions),
+		},
+		"/api/spreadsheets/:id": {
+			GET: wrap<undefined, SpreadsheetRow, SessionUser>(
+				getSpreadsheet,
 				authOptions,
 			),
 		},

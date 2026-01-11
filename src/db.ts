@@ -83,6 +83,14 @@ export type ReceiptRow = {
 	amount: number;
 };
 
+export type SpreadsheetRow = {
+	id: number
+	user_id: number
+	name: string
+	description: string | null
+	created_at: string
+}
+
 export type ReceiptItemRow = {
 	id: number;
 	receipt_id: number;
@@ -154,12 +162,15 @@ export class Db {
 	private getTodoByIdQuery: ReturnType<Database["query"]>;
 	private updateTodoQuery: ReturnType<Database["query"]>;
 	private deleteTodoQuery: ReturnType<Database["query"]>;
-	private insertReceipt: ReturnType<Database["query"]>;
-	private listReceiptsByUserQuery: ReturnType<Database["query"]>;
-	private getReceiptByIdQuery: ReturnType<Database["query"]>;
-	private updateReceiptQuery: ReturnType<Database["query"]>;
-	private deleteReceiptQuery: ReturnType<Database["query"]>;
-	private insertReceiptItem: ReturnType<Database["query"]>;
+	private insertReceipt: ReturnType<Database["query"]>
+	private listReceiptsByUserQuery: ReturnType<Database["query"]>
+	private getReceiptByIdQuery: ReturnType<Database["query"]>
+	private updateReceiptQuery: ReturnType<Database["query"]>
+	private deleteReceiptQuery: ReturnType<Database["query"]>
+	private insertSpreadsheet: ReturnType<Database["query"]>
+	private listSpreadsheetsByUserQuery: ReturnType<Database["query"]>
+	private getSpreadsheetByIdForUserQuery: ReturnType<Database["query"]>
+	private insertReceiptItem: ReturnType<Database["query"]>
 	private listReceiptItemsQuery: ReturnType<Database["query"]>;
 	private listReceiptItemsByReceiptForUserQuery: ReturnType<Database["query"]>;
 	private getReceiptItemByIdForUserQuery: ReturnType<Database["query"]>;
@@ -408,6 +419,18 @@ export class Db {
 		this.deleteReceiptQuery = this.sqlite.query(
 			"DELETE FROM receipts WHERE id = ?",
 		);
+		this.insertSpreadsheet = this.sqlite.query(
+			"INSERT INTO spreadsheets (user_id, name, description) VALUES (?, ?, ?)",
+		)
+		this.listSpreadsheetsByUserQuery = this.sqlite.query<SpreadsheetRow, number>(
+			"SELECT * FROM spreadsheets WHERE user_id = ? ORDER BY created_at DESC",
+		)
+		this.getSpreadsheetByIdForUserQuery = this.sqlite.query<
+			SpreadsheetRow,
+			[number, number]
+		>(
+			"SELECT * FROM spreadsheets WHERE id = ? AND user_id = ? LIMIT 1",
+		)
 		this.insertReceiptItem = this.sqlite.query(
 			"INSERT INTO receipt_items (receipt_id, item_id) VALUES (?, ?)",
 		);
@@ -913,16 +936,40 @@ export class Db {
 		return this.getLastInsertId();
 	}
 
+	createSpreadsheet(
+		userId: number,
+		name: string,
+		description: string | null = null,
+	): number {
+		this.insertSpreadsheet.run(userId, name, description)
+		return this.getLastInsertId()
+	}
+
 	listReceiptsByUser(userId: number): ReceiptRow[] {
 		return (this.listReceiptsByUserQuery as ReturnType<Database["query"]>).all(
 			userId,
 		) as ReceiptRow[];
 	}
 
+	listSpreadsheetsForUser(userId: number): SpreadsheetRow[] {
+		return (
+			this.listSpreadsheetsByUserQuery as ReturnType<Database["query"]>
+		).all(userId) as SpreadsheetRow[]
+	}
+
 	getReceiptById(id: number): ReceiptRow | null {
 		return (this.getReceiptByIdQuery as ReturnType<Database["query"]>).get(
 			id,
 		) as ReceiptRow | null;
+	}
+
+	getSpreadsheetByIdForUser(
+		spreadsheetId: number,
+		userId: number,
+	): SpreadsheetRow | null {
+		return (
+			this.getSpreadsheetByIdForUserQuery as ReturnType<Database["query"]>
+		).get(spreadsheetId, userId) as SpreadsheetRow | null
 	}
 
 	updateReceipt(id: number, amount: number): void {

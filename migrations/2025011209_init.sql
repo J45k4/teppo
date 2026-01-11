@@ -143,6 +143,17 @@ CREATE TABLE receipts (
 CREATE INDEX idx_receipts_user_id ON receipts(user_id);
 CREATE INDEX idx_receipts_amount ON receipts(amount);
 
+CREATE TABLE spreadsheets (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_spreadsheets_user_id ON spreadsheets(user_id);
+
 CREATE TABLE receipt_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     receipt_id INTEGER NOT NULL,
