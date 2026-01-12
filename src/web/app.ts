@@ -7,12 +7,14 @@ import { renderSpreadsheetDetailPage } from "./spreadsheet-detail-page"
 import { renderTimeTrackingPage } from "./time-page"
 import { renderTodoPage } from "./todo-page"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
+import { renderMindMapPage } from "./mindmap-page"
 
 const serverAddr = window.location.origin
 
 window.onload = () => {
 	routes({
 		"/login": () => renderLogin(),
+		"/": () => renderMindMapPage(),
 		"/time": () => renderTimeTrackingPage(),
 		"/items": () => renderItemsPage(),
 		"/todos": () => renderTodoPage(),
@@ -22,6 +24,7 @@ window.onload = () => {
 		"/spreadsheets": () => renderSpreadsheetsPage(),
 		"/spreadsheets/:id": (params: Record<string, string>) =>
 			renderSpreadsheetDetailPage(params.id ?? ""),
+		"/mind-map": () => renderMindMapPage(),
 		"/*": () => renderHome(),
 	})
 
@@ -50,6 +53,7 @@ function renderHome() {
 				<button id="goto-todos" type="button">Review todos</button>
 				<button id="goto-receipts" type="button">View receipts</button>
 				<button id="goto-spreadsheets" type="button">View spreadsheets</button>
+				<button id="goto-mindmap" type="button">Open mind map</button>
 			</div>
 			</main>
 		</div>
@@ -83,6 +87,12 @@ function renderHome() {
 		spreadsheetsButton.addEventListener("click", () =>
 			navigate("/spreadsheets"),
 		)
+	}
+
+	const mindMapButton =
+		document.querySelector<HTMLButtonElement>("#goto-mindmap")
+	if (mindMapButton) {
+		mindMapButton.addEventListener("click", () => navigate("/mind-map"))
 	}
 }
 
