@@ -6,6 +6,7 @@ import { renderSpreadsheetsPage } from "./spreadsheets-page"
 import { renderSpreadsheetDetailPage } from "./spreadsheet-detail-page"
 import { renderTimeTrackingPage } from "./time-page"
 import { renderTodoPage } from "./todo-page"
+import { renderNotesPage } from "./notes-page"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
 import { renderMindMapPage } from "./mindmap-page"
 
@@ -18,6 +19,7 @@ window.onload = () => {
 		"/time": () => renderTimeTrackingPage(),
 		"/items": () => renderItemsPage(),
 		"/todos": () => renderTodoPage(),
+		"/notes": () => renderNotesPage(),
 		"/receipts": () => renderReceiptsPage(),
 		"/receipts/:id": (params: Record<string, string>) =>
 			renderReceiptDetailPage(params.id),
@@ -51,6 +53,7 @@ function renderHome() {
 				<button id="goto-time" type="button">Open time tracking</button>
 				<button id="goto-items" type="button">Manage items</button>
 				<button id="goto-todos" type="button">Review todos</button>
+				<button id="goto-notes" type="button">Open notes</button>
 				<button id="goto-receipts" type="button">View receipts</button>
 				<button id="goto-spreadsheets" type="button">View spreadsheets</button>
 				<button id="goto-mindmap" type="button">Open mind map</button>
@@ -80,6 +83,11 @@ function renderHome() {
 		document.querySelector<HTMLButtonElement>("#goto-receipts")
 	if (receiptsButton) {
 		receiptsButton.addEventListener("click", () => navigate("/receipts"))
+	}
+
+	const notesButton = document.querySelector<HTMLButtonElement>("#goto-notes")
+	if (notesButton) {
+		notesButton.addEventListener("click", () => navigate("/notes"))
 	}
 	const spreadsheetsButton =
 		document.querySelector<HTMLButtonElement>("#goto-spreadsheets")

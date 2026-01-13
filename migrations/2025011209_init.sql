@@ -165,3 +165,16 @@ CREATE TABLE receipt_items (
 
 CREATE INDEX idx_receipt_items_receipt_id ON receipt_items(receipt_id);
 CREATE INDEX idx_receipt_items_item_id ON receipt_items(item_id);
+
+CREATE TABLE notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX idx_notes_user_id ON notes(user_id);
+CREATE INDEX idx_notes_user_updated ON notes(user_id, updated_at);

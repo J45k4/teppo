@@ -77,6 +77,15 @@ export type TodoRow = {
 	project_id: number;
 };
 
+export type NoteRow = {
+	id: number
+	user_id: number
+	title: string
+	body: string | null
+	created_at: string
+	updated_at: string
+}
+
 export type ReceiptRow = {
 	id: number;
 	user_id: number;
@@ -163,6 +172,11 @@ export class Db {
 	private getTodoByIdQuery: ReturnType<Database["query"]>;
 	private updateTodoQuery: ReturnType<Database["query"]>;
 	private deleteTodoQuery: ReturnType<Database["query"]>;
+	private insertNote: ReturnType<Database["query"]>
+	private listNotesByUserQuery: ReturnType<Database["query"]>
+	private getNoteByIdQuery: ReturnType<Database["query"]>
+	private updateNoteQuery: ReturnType<Database["query"]>
+	private deleteNoteQuery: ReturnType<Database["query"]>
 	private insertReceipt: ReturnType<Database["query"]>
 	private listReceiptsByUserQuery: ReturnType<Database["query"]>
 	private getReceiptByIdQuery: ReturnType<Database["query"]>
@@ -405,6 +419,22 @@ export class Db {
 			"UPDATE todos SET name = ?, description = ?, done = ?, deadline = ?, completed_at = ?, project_id = ? WHERE id = ?",
 		);
 		this.deleteTodoQuery = this.sqlite.query("DELETE FROM todos WHERE id = ?");
+
+		this.insertNote = this.sqlite.query(
+			"INSERT INTO notes (user_id, title, body) VALUES (?, ?, ?)",
+		)
+		this.listNotesByUserQuery = this.sqlite.query<NoteRow, number>(
+			"SELECT * FROM notes WHERE user_id = ? ORDER BY updated_at DESC, created_at DESC",
+		)
+		this.getNoteByIdQuery = this.sqlite.query<NoteRow, number>(
+			"SELECT * FROM notes WHERE id = ?",
+		)
+		this.updateNoteQuery = this.sqlite.query(
+			"UPDATE notes SET title = ?, body = ?, updated_at = datetime('now') WHERE id = ?",
+		)
+		this.deleteNoteQuery = this.sqlite.query(
+			"DELETE FROM notes WHERE id = ?",
+		)
 
 		this.insertReceipt = this.sqlite.query(
 			"INSERT INTO receipts (user_id, amount) VALUES (?, ?)",
@@ -934,6 +964,35 @@ export class Db {
 
 	deleteTodo(id: number): void {
 		this.deleteTodoQuery.run(id);
+	}
+
+	createNote(
+		userId: number,
+		title: string,
+		body: string | null,
+	): number {
+		this.insertNote.run(userId, title, body)
+		return this.getLastInsertId()
+	}
+
+	listNotesByUser(userId: number): NoteRow[] {
+		return (this.listNotesByUserQuery as ReturnType<Database["query"]>).all(
+			userId,
+		) as NoteRow[]
+	}
+
+	getNoteById(id: number): NoteRow | null {
+		return (this.getNoteByIdQuery as ReturnType<Database["query"]>).get(
+			id,
+		) as NoteRow | null
+	}
+
+	updateNote(id: number, title: string, body: string | null): void {
+		this.updateNoteQuery.run(title, body, id)
+	}
+
+	deleteNote(id: number): void {
+		this.deleteNoteQuery.run(id)
 	}
 
 	createReceipt(userId: number, amount: number): number {

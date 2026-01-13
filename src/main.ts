@@ -95,6 +95,15 @@ import {
 	type ReceiptUpdatePayload,
 } from "./receipts";
 import {
+	createNote,
+	deleteNote,
+	getNote,
+	listNotes,
+	updateNote,
+	type NoteCreatePayload,
+	type NoteUpdatePayload,
+} from "./notes"
+import {
 	createReceiptItem,
 	deleteReceiptItem,
 	getReceiptItem,
@@ -378,6 +387,16 @@ const server = Bun.serve({
 				SessionUser
 			>(createReceipt, authOptions),
 		},
+		"/api/notes": {
+			GET: wrap<undefined, ReturnType<typeof listNotes>, SessionUser>(
+				listNotes,
+				authOptions,
+			),
+			POST: wrap<NoteCreatePayload | undefined, { id: number }, SessionUser>(
+				createNote,
+				authOptions,
+			),
+		},
 		"/api/receipts/:id": {
 			GET: wrap<undefined, ReturnType<typeof getReceipt>, SessionUser>(
 				getReceipt,
@@ -390,6 +409,21 @@ const server = Bun.serve({
 			>(updateReceipt, authOptions),
 			DELETE: wrap<undefined, { ok: true }, SessionUser>(
 				deleteReceipt,
+				authOptions,
+			),
+		},
+		"/api/notes/:id": {
+			GET: wrap<undefined, ReturnType<typeof getNote>, SessionUser>(
+				getNote,
+				authOptions,
+			),
+			PATCH: wrap<
+				NoteUpdatePayload | undefined,
+				ReturnType<typeof getNote>,
+				SessionUser
+			>(updateNote, authOptions),
+			DELETE: wrap<undefined, { ok: true }, SessionUser>(
+				deleteNote,
 				authOptions,
 			),
 		},

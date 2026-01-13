@@ -1,12 +1,20 @@
 import { markSessionStatus, navigate } from "./router"
 
-type NavKey = "home" | "time" | "items" | "receipts" | "todos" | "spreadsheets"
+type NavKey =
+	| "home"
+	| "time"
+	| "items"
+	| "receipts"
+	| "todos"
+	| "spreadsheets"
+	| "notes"
 
 const navRoutes: Record<NavKey, { label: string, path: string }> = {
 	home: { label: "Home", path: "/" },
 	time: { label: "Time", path: "/time" },
 	items: { label: "Items", path: "/items" },
 	todos: { label: "Todos", path: "/todos" },
+	notes: { label: "Notes", path: "/notes" },
 	receipts: { label: "Receipts", path: "/receipts" },
 	spreadsheets: { label: "Spreadsheets", path: "/spreadsheets" },
 }
