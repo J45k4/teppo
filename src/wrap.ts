@@ -1,6 +1,6 @@
 import type { Db } from "./db";
 
-type RouteRequest = Request & { params?: Record<string, string> };
+export type RouteRequest = Request & { params?: Record<string, string> };
 type HeaderValues = Record<string, string>;
 
 export type RequestContext<TUser = unknown> = {

@@ -1,4 +1,5 @@
 import { markSessionStatus, navigate, routes } from "./router"
+import { renderItemDetailPage } from "./item-detail-page"
 import { renderItemsPage } from "./items-page"
 import { renderReceiptDetailPage } from "./receipt-detail-page"
 import { renderReceiptsPage } from "./receipts-page"
@@ -18,6 +19,8 @@ window.onload = () => {
 		"/": () => renderMindMapPage(),
 		"/time": () => renderTimeTrackingPage(),
 		"/items": () => renderItemsPage(),
+		"/items/:id": (params: Record<string, string>) =>
+			renderItemDetailPage(params.id),
 		"/todos": () => renderTodoPage(),
 		"/notes": () => renderNotesPage(),
 		"/receipts": () => renderReceiptsPage(),

@@ -41,13 +41,15 @@ export type ContainerRow = {
 };
 
 export type ItemRow = {
-	id: number;
-	name: string;
-	description: string | null;
-	barcode: string | null;
-	cost: number | null;
-	container_id: number;
-};
+	id: number
+	name: string
+	description: string | null
+	barcode: string | null
+	cost: number | null
+	container_id: number
+	image_path: string | null
+	image_type: string | null
+}
 
 export type ItemLogRow = {
 	id: number;
@@ -155,6 +157,7 @@ export class Db {
 	private getItemByIdQuery: ReturnType<Database["query"]>;
 	private getItemByIdForUserQuery: ReturnType<Database["query"]>;
 	private updateItemQuery: ReturnType<Database["query"]>;
+	private updateItemImageQuery: ReturnType<Database["query"]>;
 	private deleteItemQuery: ReturnType<Database["query"]>;
 	private insertItemLog: ReturnType<Database["query"]>;
 	private listItemLogsByItemQuery: ReturnType<Database["query"]>;
@@ -202,11 +205,13 @@ export class Db {
 
 	constructor(options: DbOptions = {}) {
 		this.sqlite =
-			options.db ?? new Database(options.dbPath ?? DB_PATH, { create: true });
-		this.sqlite.run("PRAGMA journal_mode = WAL;");
-		this.sqlite.run("PRAGMA foreign_keys = ON;");
+			options.db ?? new Database(options.dbPath ?? DB_PATH, { create: true })
+		this.sqlite.run("PRAGMA journal_mode = WAL;")
+		this.sqlite.run("PRAGMA foreign_keys = ON;")
+		this.ensureItemImageColumns()
 
 		this.lastInsertId = this.sqlite.query<{ id: number }, any>(
+
 			"SELECT last_insert_rowid() AS id",
 		);
 
@@ -298,13 +303,13 @@ export class Db {
 		);
 		this.getContainerByIdForUserQuery = this.sqlite.query<
 			ContainerRow,
-			{ containerId: number; userId: number }
+			[number, number]
 		>(`
 			SELECT containers.*
 			FROM containers
 			JOIN user_containers ON user_containers.container_id = containers.id
-			WHERE containers.id = $containerId
-				AND user_containers.user_id = $userId
+			WHERE containers.id = ?
+				AND user_containers.user_id = ?
 		`);
 		this.updateContainerQuery = this.sqlite.query(
 			"UPDATE containers SET name = ?, description = ? WHERE id = ?",
@@ -321,13 +326,13 @@ export class Db {
 		);
 		this.listItemsByContainerForUserQuery = this.sqlite.query<
 			ItemRow,
-			{ containerId: number; userId: number }
+			[number, number]
 		>(`
 			SELECT items.*
 			FROM items
 			JOIN user_containers ON user_containers.container_id = items.container_id
-			WHERE items.container_id = $containerId
-				AND user_containers.user_id = $userId
+			WHERE items.container_id = ?
+				AND user_containers.user_id = ?
 			ORDER BY items.name
 		`);
 		this.listItemsForUserQuery = this.sqlite.query<ItemRow, number>(
@@ -345,18 +350,21 @@ export class Db {
 		);
 		this.getItemByIdForUserQuery = this.sqlite.query<
 			ItemRow,
-			{ itemId: number; userId: number }
+			[number, number, number]
 		>(`
 			SELECT items.*
 			FROM items
 			LEFT JOIN user_items ON user_items.item_id = items.id
 			LEFT JOIN user_containers ON user_containers.container_id = items.container_id
-			WHERE items.id = $itemId
-				AND (user_items.user_id = $userId OR user_containers.user_id = $userId)
+			WHERE items.id = ?
+				AND (user_items.user_id = ? OR user_containers.user_id = ?)
 			LIMIT 1
 		`);
 		this.updateItemQuery = this.sqlite.query(
 			"UPDATE items SET name = ?, description = ?, barcode = ?, cost = ?, container_id = ? WHERE id = ?",
+		);
+		this.updateItemImageQuery = this.sqlite.query(
+			"UPDATE items SET image_path = ?, image_type = ? WHERE id = ?",
 		);
 		this.deleteItemQuery = this.sqlite.query("DELETE FROM items WHERE id = ?");
 
@@ -368,9 +376,9 @@ export class Db {
 		);
 		this.listItemLogsByItemForUserQuery = this.sqlite.query<
 			ItemLogRow,
-			{ itemId: number; userId: number }
+			[number, number]
 		>(
-			"SELECT * FROM item_logs WHERE item_id = $itemId AND user_id = $userId ORDER BY timestamp DESC",
+			"SELECT * FROM item_logs WHERE item_id = ? AND user_id = ? ORDER BY timestamp DESC",
 		);
 		this.getItemLogByIdQuery = this.sqlite.query<ItemLogRow, number>(
 			"SELECT * FROM item_logs WHERE id = ?",
@@ -474,24 +482,24 @@ export class Db {
 		);
 		this.listReceiptItemsByReceiptForUserQuery = this.sqlite.query<
 			ReceiptItemRow,
-			{ receiptId: number; userId: number }
+			[number, number]
 		>(`
 			SELECT receipt_items.*
 			FROM receipt_items
 			JOIN receipts ON receipts.id = receipt_items.receipt_id
-			WHERE receipt_items.receipt_id = $receiptId
-				AND receipts.user_id = $userId
+			WHERE receipt_items.receipt_id = ?
+				AND receipts.user_id = ?
 			ORDER BY receipt_items.id DESC
 		`);
 		this.getReceiptItemByIdForUserQuery = this.sqlite.query<
 			ReceiptItemRow,
-			{ receiptItemId: number; userId: number }
+			[number, number]
 		>(`
 			SELECT receipt_items.*
 			FROM receipt_items
 			JOIN receipts ON receipts.id = receipt_items.receipt_id
-			WHERE receipt_items.id = $receiptItemId
-				AND receipts.user_id = $userId
+			WHERE receipt_items.id = ?
+				AND receipts.user_id = ?
 		`);
 		this.deleteReceiptItemQuery = this.sqlite.query(
 			"DELETE FROM receipt_items WHERE id = ?",
@@ -535,6 +543,19 @@ export class Db {
 
 	closeDb(): void {
 		this.sqlite.close();
+	}
+
+	private ensureItemImageColumns(): void {
+		const rows = this.sqlite
+			.query<{ name: string }, any>("PRAGMA table_info(items)")
+			.all();
+		const columnNames = new Set(rows.map((row) => row.name));
+		if (!columnNames.has("image_path")) {
+			this.sqlite.run("ALTER TABLE items ADD COLUMN image_path TEXT");
+		}
+		if (!columnNames.has("image_type")) {
+			this.sqlite.run("ALTER TABLE items ADD COLUMN image_type TEXT");
+		}
 	}
 
 	private getLastInsertId(): number {
@@ -709,10 +730,8 @@ export class Db {
 		userId: number,
 	): ContainerRow | null {
 		return (this.getContainerByIdForUserQuery as ReturnType<Database["query"]>).get(
-			{
-				containerId,
-				userId,
-			},
+			containerId,
+			userId,
 		) as ContainerRow | null;
 	}
 
@@ -787,10 +806,7 @@ export class Db {
 	): ItemRow[] {
 		return (
 			this.listItemsByContainerForUserQuery as ReturnType<Database["query"]>
-		).all({
-			containerId,
-			userId,
-		}) as ItemRow[];
+		).all(containerId, userId) as ItemRow[];
 	}
 
 	listItemsForUser(userId: number): ItemRow[] {
@@ -808,10 +824,9 @@ export class Db {
 
 	getItemByIdForUser(itemId: number, userId: number): ItemRow | null {
 		return (this.getItemByIdForUserQuery as ReturnType<Database["query"]>).get(
-			{
-				itemId,
-				userId,
-			},
+			itemId,
+			userId,
+			userId,
 		) as ItemRow | null;
 	}
 
@@ -832,7 +847,15 @@ export class Db {
 		cost: number | null,
 		containerId: number,
 	): void {
-		this.updateItemQuery.run(name, description, barcode, cost, containerId, id);
+		this.updateItemQuery.run(name, description, barcode, cost, containerId, id)
+	}
+
+	setItemImage(
+		id: number,
+		path: string | null,
+		type: string | null,
+	): void {
+		this.updateItemImageQuery.run(path, type, id)
 	}
 
 	deleteItem(id: number): void {
@@ -861,10 +884,7 @@ export class Db {
 	): ItemLogRow[] {
 		return (
 			this.listItemLogsByItemForUserQuery as ReturnType<Database["query"]>
-		).all({
-			itemId,
-			userId,
-		}) as ItemLogRow[];
+		).all(itemId, userId) as ItemLogRow[];
 	}
 
 	getItemLogById(id: number): ItemLogRow | null {
@@ -1069,10 +1089,7 @@ export class Db {
 	): ReceiptItemRow[] {
 		return (
 			this.listReceiptItemsByReceiptForUserQuery as ReturnType<Database["query"]>
-		).all({
-			receiptId,
-			userId,
-		}) as ReceiptItemRow[];
+		).all(receiptId, userId) as ReceiptItemRow[];
 	}
 
 	getReceiptItemByIdForUser(
@@ -1081,10 +1098,7 @@ export class Db {
 	): ReceiptItemRow | null {
 		return (
 			this.getReceiptItemByIdForUserQuery as ReturnType<Database["query"]>
-		).get({
-			receiptItemId,
-			userId,
-		}) as ReceiptItemRow | null;
+		).get(receiptItemId, userId) as ReceiptItemRow | null;
 	}
 
 	deleteReceiptItem(id: number): void {

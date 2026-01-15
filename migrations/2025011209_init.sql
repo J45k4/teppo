@@ -58,6 +58,8 @@ CREATE TABLE items (
     description TEXT,
     barcode TEXT,
     cost REAL,
+    image_path TEXT,
+    image_type TEXT,
     container_id INTEGER NOT NULL,
     FOREIGN KEY (container_id) REFERENCES containers(id)
 );

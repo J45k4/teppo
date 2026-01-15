@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { wrap } from "./wrap";
+import { wrap, type RouteRequest } from "./wrap";
 import index from "./web/index.html"
 import { Db, DB_PATH } from "./db";
 import { runMigrations } from "../migrate.ts";
@@ -62,7 +62,9 @@ import {
 	listItemUsers,
 	listItems,
 	removeItemUser,
+	serveItemImage,
 	updateItem,
+	uploadItemImage,
 	type ItemCreatePayload,
 	type ItemSharePayload,
 	type ItemUpdatePayload,
@@ -284,6 +286,13 @@ const server = Bun.serve({
 				deleteItem,
 				authOptions,
 			),
+		},
+		"/api/items/:id/image": {
+			POST: wrap<undefined, { imageUrl: string }, SessionUser>(uploadItemImage, {
+				...authOptions,
+				parseBody: false,
+			}),
+			GET: async (req: RouteRequest) => serveItemImage(req, db),
 		},
 		"/api/items/:id/users": {
 			GET: wrap<undefined, ReturnType<typeof listItemUsers>, SessionUser>(

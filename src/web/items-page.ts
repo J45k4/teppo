@@ -1,5 +1,6 @@
 import { createModal } from "./modal"
 import { bindNavbarHandlers, renderNavbar } from "./nav"
+import { navigate } from "./router"
 
 type ContainerDTO = {
 	id: number
@@ -14,7 +15,9 @@ type ItemDTO = {
 	barcode?: string | null
 	cost?: number | null
 	container_id: number
+	image_path?: string | null
 }
+
 
 const currencyFormatter = new Intl.NumberFormat(undefined, {
 	style: "currency",
@@ -128,6 +131,10 @@ export async function renderItemsPage() {
 					<span>Cost</span>
 					<input id="item-cost" name="cost" type="number" step="0.01" />
 				</label>
+				<label>
+					<span>Photo</span>
+					<input id="item-image" name="image" type="file" accept="image/*" />
+				</label>
 				<p class="modal-error" id="item-error" aria-live="polite"></p>
 				<div class="modal-actions">
 					<button type="button" id="item-cancel">Cancel</button>
@@ -164,6 +171,7 @@ export async function renderItemsPage() {
 	)
 	const itemBarcodeInput = body.querySelector<HTMLInputElement>("#item-barcode")
 	const itemCostInput = body.querySelector<HTMLInputElement>("#item-cost")
+	const itemImageInput = body.querySelector<HTMLInputElement>("#item-image")
 	const itemError = body.querySelector<HTMLParagraphElement>("#item-error")
 	const itemCancel = body.querySelector<HTMLButtonElement>("#item-cancel")
 	const itemsRows = body.querySelector<HTMLDivElement>("#items-rows")
@@ -191,6 +199,7 @@ export async function renderItemsPage() {
 		itemDescriptionInput,
 		itemBarcodeInput,
 		itemCostInput,
+		itemImageInput,
 	]
 
 	const containerModal = createModal({
@@ -301,17 +310,42 @@ export async function renderItemsPage() {
 					item.barcode ? `Barcode: ${item.barcode}` : null,
 					cost ? `Cost: ${cost}` : null,
 				].filter(Boolean)
+				const imageMarkup = item.image_path
+					? `<img class="items-image" src="/api/items/${item.id}/image" alt="${item.name}" loading="lazy" />`
+					: '<span class="items-image-placeholder">No photo</span>'
+
 				return `
 					<div class="items-row">
-						<div>
-							<div class="items-name">${item.name}</div>
-							${description}
-						</div>
+						<button
+							type="button"
+							class="items-main items-main-button"
+							data-action="view-item"
+							data-id="${item.id}"
+						>
+							<div class="items-image-wrapper">
+								${imageMarkup}
+							</div>
+							<div>
+								<div class="items-name">${item.name}</div>
+								${description}
+							</div>
+						</button>
 						<div class="items-details">
 							${details.length > 0 ? details.join(" • ") : "—"}
 						</div>
 						<div class="items-actions">
-							<button type="button" data-action="delete-item" data-id="${item.id}">
+							<button
+								type="button"
+								data-action="upload-image"
+								data-id="${item.id}"
+							>
+								${item.image_path ? "Change photo" : "Add photo"}
+							</button>
+							<button
+								type="button"
+								data-action="delete-item"
+								data-id="${item.id}"
+							>
 								Delete
 							</button>
 						</div>
@@ -451,6 +485,7 @@ export async function renderItemsPage() {
 		const barcode = itemBarcodeInput?.value.trim() ?? ""
 		const costValue = itemCostInput?.value.trim() ?? ""
 		const cost = costValue ? Number(costValue) : null
+		const imageFile = itemImageInput?.files?.[0] ?? null
 		if (costValue && Number.isNaN(cost)) {
 			if (itemError) itemError.textContent = "Enter a valid cost"
 			return
@@ -477,6 +512,31 @@ export async function renderItemsPage() {
 				}
 				return
 			}
+			const json = await response.json().catch(() => null)
+			const createdId =
+				json && typeof json.id === "number" ? Number(json.id) : null
+			if (!createdId) {
+				if (itemError) {
+					itemError.textContent = "Unable to create item"
+				}
+				return
+			}
+			if (imageFile) {
+				try {
+					await uploadItemImage(createdId, imageFile)
+				} catch (uploadError) {
+					console.error("Failed to upload item image", uploadError)
+					const message =
+						uploadError instanceof Error
+							? uploadError.message
+							: "Unable to upload image"
+					if (itemError) {
+						itemError.textContent = message
+					}
+					await refreshItems()
+					return
+				}
+			}
 			itemModal.close()
 			await refreshItems()
 		} catch (error) {
@@ -489,6 +549,24 @@ export async function renderItemsPage() {
 
 	itemsRows?.addEventListener("click", async (event) => {
 		const target = event.target as HTMLElement
+		const uploadButton = target.closest<HTMLButtonElement>(
+			"[data-action='upload-image']",
+		)
+		if (uploadButton) {
+			const id = Number(uploadButton.dataset.id)
+			if (!Number.isInteger(id)) return
+			promptItemImageUpload(id)
+			return
+		}
+		const viewButton = target.closest<HTMLButtonElement>(
+			"[data-action='view-item']",
+		)
+		if (viewButton) {
+			const id = Number(viewButton.dataset.id)
+			if (!Number.isInteger(id)) return
+			navigate(`/items/${id}`)
+			return
+		}
 		const button = target.closest<HTMLButtonElement>(
 			"[data-action='delete-item']",
 		)
@@ -511,6 +589,41 @@ export async function renderItemsPage() {
 			alert("Unable to delete item")
 		}
 	})
+
+	async function uploadItemImage(itemId: number, file: File) {
+		const formData = new FormData()
+		formData.append("image", file)
+		const response = await fetch(`/api/items/${itemId}/image`, {
+			method: "POST",
+			credentials: "include",
+			body: formData,
+		})
+		if (!response.ok) {
+			const payload = (await response.json().catch(() => null)) as
+				| { error?: string }
+				| null
+			const message = payload?.error ?? "Unable to upload image"
+			throw new Error(message)
+		}
+	}
+
+	function promptItemImageUpload(itemId: number) {
+		const input = document.createElement("input")
+		input.type = "file"
+		input.accept = "image/*"
+		input.addEventListener("change", async () => {
+			const file = input.files?.[0]
+			if (!file) return
+			try {
+				await uploadItemImage(itemId, file)
+				await refreshItems()
+			} catch (error) {
+				console.error("Failed to upload item image", error)
+				alert(error instanceof Error ? error.message : "Unable to upload image")
+			}
+		})
+		input.click()
+	}
 
 	async function loadContainers(preferredId: number | null = null) {
 		const response = await fetch("/api/containers", { credentials: "include" })
